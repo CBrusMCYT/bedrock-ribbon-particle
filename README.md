@@ -2,7 +2,7 @@
 
 **An in-depth investigation into how curved Ribbon Particles are constructed in Minecraft Bedrock Edition.**
 
-[**🌐 View Live Documentation**](https://cbrusmcyt.github.io/bedrock-ribbon-particle/#home)
+[**🌐 View Live Documentation**](https://cbrusmcyt.github.io/bedrock-ribbon-particle/)
 
 ---
 
@@ -159,5 +159,3 @@ This is an independent technical research and educational documentation project.
 Original assets and implementations remain the property of their respective owners.
 
 ---
-
-\<p align="center">&#x20; \*\*Reverse Engineer. Understand. Recreate.\*\*Made by **CBrusMC**\</p>
