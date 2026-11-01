@@ -1,0 +1,1949 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Action &amp; Stuff Ribbon Particle Reverse Engineering</title><link rel="stylesheet" href="assets/css/style.css"></head><body>
+<div id="boot"><div class="boot-in"><div class="logo">Action &amp; Stuff</div><div class="stage"><canvas id="bootCv" width="192" height="108"></canvas></div><div class="boot-t" id="bootT"></div><div class="lbar"><i id="bootBar"></i></div><div class="boot-s"><span id="bootS">Loading...</span><span id="bootP">0%</span></div><div class="boot-tip" id="bootTip"></div><div class="boot-skip">tap to skip</div></div></div>
+<div id="app">
+<section class="page" id="page-lang"><div class="lang-h"><div class="logo">Action &amp; Stuff</div><h1>Pilih bahasa<br>Choose language</h1></div>
+<div class="langs"><button class="obtn" data-set-lang="id"><b>Bahasa Indonesia</b><span>Tampilkan dokumentasi dalam Bahasa Indonesia.</span></button>
+<button class="obtn" data-set-lang="en"><b>Bahasa Inggris / English</b><span>Show the documentation in English.</span></button></div></section>
+
+<section class="page" id="page-home"><div class="hero"><div class="logo">Action &amp; Stuff</div><h1>Ribbon Particle Reverse Engineering</h1><p class="sub"><span data-l="id">Catatan membongkar ribbon melengkung dari PNG yang lurus, di Minecraft Bedrock.</span><span data-l="en">Notes on taking apart a curved ribbon built from a straight PNG, in Minecraft Bedrock.</span></p></div>
+<div class="menu"><button class="obtn" data-go="actions"><b>Action &amp; Stuff Warden Soul Ribbon Particle</b><span><span data-l="id">Alur pelacakan, kode asli (obfuscated), dan versi yang di-rename.</span><span data-l="en">The tracing steps, the original (obfuscated) code, and a renamed version.</span></span></button>
+<button class="obtn" data-go="recreated"><b>Recreated Ribbon Particle</b><span><span data-l="id">Versi satu file buatan sendiri: Soul Ribbon, kodenya, dan kenapa ini bisa jalan.</span><span data-l="en">A single-file version of our own: Soul Ribbon, its code, and why it works.</span></span></button></div>
+<div class="row"><button class="mini" data-go="lang"><span data-l="id">Bahasa</span><span data-l="en">Language</span></button></div>
+<p class="foot"><span data-l="id">Bahan: Ribbon_Warden_Soul.zip, warden.json, f2da1072.json, animation_controllers.zip, particles (102 file berisi sealpe), entity.zip, animations.zip, rhs.json.</span><span data-l="en">Sources: Ribbon_Warden_Soul.zip, warden.json, f2da1072.json, animation_controllers.zip, particles (102 files containing sealpe), entity.zip, animations.zip, rhs.json.</span></p></section>
+
+<section class="page" id="page-actions"><div class="top"><button class="mini" data-go="home">&lt; Menu</button><h2>Action &amp; Stuff Warden Soul Ribbon Particle</h2><button class="mini" data-go="lang"><span data-l="id">Bahasa</span><span data-l="en">Language</span></button></div>
+<div class="tabs"><button class="tab on" data-tab="sum"><span data-l="id">Ringkasan</span><span data-l="en">Summary</span></button><button class="tab" data-tab="flow"><span data-l="id">Alur</span><span data-l="en">Steps</span></button><button class="tab" data-tab="obf"><span data-l="id">Kode Obfuscated</span><span data-l="en">Obfuscated Code</span></button><button class="tab" data-tab="ren"><span data-l="id">Kode Renamed</span><span data-l="en">Renamed Code</span></button><button class="tab" data-tab="map"><span data-l="id">Tabel Rename</span><span data-l="en">Rename Table</span></button></div>
+
+<div class="tp on" data-tab="sum"><div class="panel"><h3><span data-l="id">Jawaban singkat</span><span data-l="en">Short answer</span></h3>
+<p><span data-l="id">PNG-nya memang cuma strip lurus 20×240: kepala putih di atas, ekor biru yang makin transparan ke bawah. Lengkungannya <b>tidak</b> ada di gambar dan tidak ada di mesh. Ribbon adalah barisan segmen lurus pendek. Dua ujung tiap segmen dihitung rumus Molang (spiral meredam), dan tiap segmen adalah satu billboard yang diputar searah garis ekor ke kepala.</span><span data-l="en">The PNG really is just a straight 20×240 strip: white head on top, a blue tail that gets more transparent downward. The curve is <b>not</b> in the image and not in a mesh. A ribbon is a row of short straight segments. Both ends of each segment are computed by a Molang formula (a damped spiral), and each segment is one billboard rotated along the tail-to-head line.</span></p>
+<h3><span data-l="id">Dua jalur yang ditemukan</span><span data-l="en">Two paths we found</span></h3>
+<div class="chain"><span data-l="id"><b>A. ribbon murni</b></span><span data-l="en"><b>A. plain ribbon</b></span>
+/particle ribbon:endckw ~ ~1 ~
+  -> <b>ribbon:endckw</b> <span data-l="id">(induk, emitter)  timeline 30 Hz, event bsopxi</span><span data-l="en">(parent, emitter)  30 Hz timeline, event bsopxi</span>
+  -> <b>ribbon:wrbaad</b> <span data-l="id">(anak) x N segmen</span><span data-l="en">(child) x N segments</span>   = warden_soul
+
+<span data-l="id"><b>B. efek kematian warden</b></span><span data-l="en"><b>B. warden death effect</b></span>
+controller dgwumy (q.death_ticks) -> zjbotg = ribbon:pxabgv
+  -> ribbon:hzxbiw (v.kozdua=4) -> ribbon:mdeyzy -> ribbon:kjnksh
+  -> <span data-l="id">partikel + sound_effect (sonic_boom, dll)</span><span data-l="en">particles + sound_effect (sonic_boom, etc.)</span></div>
+<h3><span data-l="id">Fakta kunci</span><span data-l="en">Key facts</span></h3><ul>
+<li><span data-l="id">Anak <code>wrbaad</code> membaca 37 variabel dari luar. Induk <code>endckw</code> mengisi semuanya di <code>creation_expression</code>, termasuk 4 angka acak dari <code>v.emitter_random_1</code> sampai <code>_4</code>.</span><span data-l="en">The child <code>wrbaad</code> reads 37 variables from outside. The parent <code>endckw</code> fills all of them in <code>creation_expression</code>, including 4 random numbers from <code>v.emitter_random_1</code> to <code>_4</code>.</span></li>
+<li><span data-l="id">Anak hanya aktif bila <code>v.sealpe</code> benar (<code>v.sealpe??0</code>). Induk mengisinya lewat <code>pre_effect_expression</code>: <code>v.sealpe=t.lot</code>.</span><span data-l="en">The child is only active when <code>v.sealpe</code> is true (<code>v.sealpe??0</code>). The parent sets it through <code>pre_effect_expression</code>: <code>v.sealpe=t.lot</code>.</span></li>
+<li><span data-l="id">Anak punya <code>emitter_rate_instant</code> 1 dan <code>creation_event</code> yang mengisi <code>v.wnaarx=1</code>: emitter anak langsung expired, tapi partikelnya hidup sampai segmen habis.</span><span data-l="en">The child has <code>emitter_rate_instant</code> 1 and a <code>creation_event</code> that sets <code>v.wnaarx=1</code>: the child emitter expires immediately, but its particle lives until the segment is done.</span></li>
+<li><span data-l="id">Kepala dan ekor segmen: <code>v.mbjzhu</code> dan <code>v.adphax</code> (waktu kurva), posisinya <code>v.kgobpa</code>... dan <code>v.sbhmli</code>...; UV dipotong lewat <code>v.nviqsz</code> dan <code>v.sbiadh</code>.</span><span data-l="en">Head and tail of a segment: <code>v.mbjzhu</code> and <code>v.adphax</code> (curve time), positions <code>v.kgobpa</code>... and <code>v.sbhmli</code>...; the UV is sliced with <code>v.nviqsz</code> and <code>v.sbiadh</code>.</span></li>
+<li><span data-l="id">Partikel Bedrock bisa memutar suara lewat <code>sound_effect</code> di <code>events</code>.</span><span data-l="en">Bedrock particles can play sounds through <code>sound_effect</code> in <code>events</code>.</span></li></ul></div></div>
+
+<div class="tp" data-tab="flow"><div class="panel"><h3><span data-l="id">Alur reverse engineering</span><span data-l="en">Reverse engineering steps</span></h3><ol class="steps">
+<li><b><span data-l="id">PNG-nya lurus.</span><span data-l="en">The PNG is straight.</span></b><p><span data-l="id"><code>qcz.png</code> 20×240: kepala putih di baris atas, ekor biru makin transparan ke bawah, sisi kiri-kanan lebih putih. Tidak ada bentuk lengkung atau runcing.</span><span data-l="en"><code>qcz.png</code> is 20×240: white head in the top rows, a blue tail getting more transparent downward, brighter left and right edges. No curved or pointed shape.</span></p></li>
+<li><b><span data-l="id">Partikel di Ribbon_Warden_Soul.zip.</span><span data-l="en">The particle in Ribbon_Warden_Soul.zip.</span></b><p><span data-l="id"><code>warden_soul.json</code> (id asli <code>ribbon:wrbaad</code>): satu partikel, <code>emitter_rate_instant</code> 1, <code>per_update_expression</code> ±5,5 KB berisi rumus tertutup. Membaca 37 variabel luar; hanya <code>v.sealpe</code> yang punya default.</span><span data-l="en"><code>warden_soul.json</code> (original id <code>ribbon:wrbaad</code>): one particle, <code>emitter_rate_instant</code> 1, a ~5.5 KB <code>per_update_expression</code> holding a closed-form formula. It reads 37 outside variables; only <code>v.sealpe</code> has a default.</span></p></li>
+<li><b><span data-l="id">warden.json.</span><span data-l="en">warden.json.</span></b><p><span data-l="id">Client entity mendaftarkan 8 partikel (7 <code>ribbon:*</code>) dan controller <code>cgjoma</code> = <code>controller.animation.ribbon.dgwumy</code>. Tidak ada <code>wrbaad</code>.</span><span data-l="en">The client entity registers 8 particles (7 <code>ribbon:*</code>) and controller <code>cgjoma</code> = <code>controller.animation.ribbon.dgwumy</code>. <code>wrbaad</code> is not there.</span></p></li>
+<li><b><span data-l="id">Animasi dan controller.</span><span data-l="en">Animations and controllers.</span></b><p><span data-l="id">Di <code>616f2ff8.json</code>, <code>zjbotg</code> (= <code>ribbon:pxabgv</code>) dipanggil 390 kali oleh dua controller. Yang dipakai warden: <code>dgwumy</code>, dipicu <code>v.evlypi=='jhotdc' &amp;&amp; !q.is_attached &amp;&amp; q.death_ticks&gt;=v.mnzcxa</code>, dengan <code>v.kviigs</code> (1 sampai 4) dan <code>v.ymfcwu</code> (0 sampai 3).</span><span data-l="en">In <code>616f2ff8.json</code>, <code>zjbotg</code> (= <code>ribbon:pxabgv</code>) is called 390 times by two controllers. The warden uses <code>dgwumy</code>, triggered by <code>v.evlypi=='jhotdc' &amp;&amp; !q.is_attached &amp;&amp; q.death_ticks&gt;=v.mnzcxa</code>, with <code>v.kviigs</code> (1 to 4) and <code>v.ymfcwu</code> (0 to 3).</span></p></li>
+<li><b><span data-l="id">Pemicu 37 variabel tidak ketemu.</span><span data-l="en">The trigger of the 37 variables was not found.</span></b><p><span data-l="id">Dari 1062 pemanggilan partikel, yang paling banyak mengisi variabel hanya 6. <code>sealpe</code> nol kemunculan di entity, animasi, dan controller.</span><span data-l="en">Out of 1062 particle calls, the most any of them sets is 6 variables. <code>sealpe</code> has zero occurrences in the entity, animations, and controllers.</span></p></li>
+<li><b><span data-l="id">Batch search <code>sealpe</code> di folder particles.</span><span data-l="en">Batch search for <code>sealpe</code> in the particles folder.</span></b><p><span data-l="id">102 file. Di antaranya <code>rhz.json</code> (<code>ribbon:endckw</code>) yang memanggil <code>ribbon:wrbaad</code> lewat event.</span><span data-l="en">102 files. One of them is <code>rhz.json</code> (<code>ribbon:endckw</code>), which calls <code>ribbon:wrbaad</code> from an event.</span></p></li>
+<li><b><span data-l="id">Induk <code>endckw</code>.</span><span data-l="en">The parent <code>endckw</code>.</span></b><p><span data-l="id"><code>creation_expression</code> mengisi umur acak <code>Math.random(2.5,4)</code>, empat angka acak, dan konstanta fisika. Timeline 121 titik (30 Hz, 0 sampai 4 detik) memanggil event <code>bsopxi</code>: hitung segmen berikutnya (<code>v.ufzvdc</code> sebagai counter), lalu panggil anak dengan <code>pre_effect_expression</code> (<code>v.sealpe=t.lot;...</code>).</span><span data-l="en"><code>creation_expression</code> sets a random lifetime <code>Math.random(2.5,4)</code>, four random numbers, and the physics constants. A 121-point timeline (30 Hz, 0 to 4 seconds) calls event <code>bsopxi</code>: it computes the next segment (<code>v.ufzvdc</code> as a counter), then calls the child with <code>pre_effect_expression</code> (<code>v.sealpe=t.lot;...</code>).</span></p></li>
+<li><b><span data-l="id">Siapa yang memanggil <code>endckw</code>?</span><span data-l="en">Who calls <code>endckw</code>?</span></b><p><span data-l="id">Tidak ada di 128 entity, 17 animasi, 9 controller, maupun partikel lain. Ia tidak butuh input (hanya <code>v.wthuxi??0</code> opsional), jadi cukup <code>/particle ribbon:endckw ~ ~1 ~</code>. Dites dengan command block repeat: muncul banyak ribbon melengkung kiri-kanan.</span><span data-l="en">Nobody does: not in 128 entities, 17 animation files, 9 controllers, or other particles. It needs no input (only an optional <code>v.wthuxi??0</code>), so <code>/particle ribbon:endckw ~ ~1 ~</code> is enough. Tested with a repeating command block: many ribbons curving left and right appeared.</span></p></li>
+<li><b><span data-l="id">pxabgv.</span><span data-l="en">pxabgv.</span></b><p><span data-l="id">Di <code>rhs.json</code> ia dispatcher: partikel ukuran 0 dan umur 0, <code>expiration_event</code> memanggil <code>ribbon:hzxbiw</code> dengan <code>v.kozdua=4</code>. <code>hzxbiw</code> mengaktifkan satu anak lewat <code>v.sealpe=t.wyp==N</code>; rantainya sampai <code>ribbon:mdeyzy</code> dan <code>ribbon:kjnksh</code>.</span><span data-l="en">In <code>rhs.json</code> it is a dispatcher: a particle of size 0 and lifetime 0 whose <code>expiration_event</code> calls <code>ribbon:hzxbiw</code> with <code>v.kozdua=4</code>. <code>hzxbiw</code> activates one child through <code>v.sealpe=t.wyp==N</code>; the chain goes on to <code>ribbon:mdeyzy</code> and <code>ribbon:kjnksh</code>.</span></p></li>
+<li><b><span data-l="id">Suara.</span><span data-l="en">Sound.</span></b><p><span data-l="id"><code>mdeyzy</code> memainkan <code>tripod</code> dan <code>wind_charge.burst</code>; <code>kjnksh</code> memainkan <code>sonic_boom</code>, <code>respawn_anchor.deplete</code>, dan <code>particle.soul_escape.loud</code>.</span><span data-l="en"><code>mdeyzy</code> plays <code>tripod</code> and <code>wind_charge.burst</code>; <code>kjnksh</code> plays <code>sonic_boom</code>, <code>respawn_anchor.deplete</code>, and <code>particle.soul_escape.loud</code>.</span></p></li></ol>
+<h3><span data-l="id">Koreksi di tengah jalan</span><span data-l="en">Corrections along the way</span></h3>
+<div class="warn"><span data-l="id">Dugaan awal “ribbon = mesh” salah: hanya billboard.</span><span data-l="en">The first guess “ribbon = mesh” was wrong: it is only billboards.</span></div>
+<div class="warn"><span data-l="id"><code>pxabgv</code> awalnya dikira <code>warden_soul</code>. Bukan: <code>warden_soul</code> = <code>wrbaad</code>, sedangkan <code>pxabgv</code> hanya dispatcher efek kematian.</span><span data-l="en"><code>pxabgv</code> was first thought to be <code>warden_soul</code>. It is not: <code>warden_soul</code> = <code>wrbaad</code>, while <code>pxabgv</code> is only the death effect dispatcher.</span></div>
+<div class="warn"><span data-l="id">“Partikel tidak bisa bersuara” salah: bisa lewat <code>sound_effect</code>.</span><span data-l="en">“Particles cannot play sounds” was wrong: they can, through <code>sound_effect</code>.</span></div>
+<div class="warn"><span data-l="id"><code>v.wthuxi</code> sempat dikira kebetulan sama dengan variabel animasi; ternyata arah hadap yang dibaca emitter lewat <code>v.wthuxi??0</code>.</span><span data-l="en"><code>v.wthuxi</code> was first taken as a coincidence with an animation variable; it is actually the heading that the emitter reads through <code>v.wthuxi??0</code>.</span></div>
+<h3><span data-l="id">Pendaftaran partikel di warden.json</span><span data-l="en">Particle registration in warden.json</span></h3><div class="tw"><table><tr><th><span data-l="id">Nama pendek</span><span data-l="en">Short name</span></th><th><span data-l="id">Partikel</span><span data-l="en">Particle</span></th></tr><tr><td class="m">zjbotg</td><td class="m">ribbon:pxabgv</td></tr><tr><td class="m">nmagsu</td><td class="m">ribbon:yijrou</td></tr><tr><td class="m">ddrfzp</td><td class="m">ribbon:zuzfpp</td></tr><tr><td class="m">cbcewo</td><td class="m">ribbon:rpccbh</td></tr><tr><td class="m">djnihu</td><td class="m">ribbon:aigfhq</td></tr><tr><td class="m">hwuwvi</td><td class="m">ribbon:vsulpr</td></tr><tr><td class="m">otgche</td><td class="m">ribbon:otgche</td></tr><tr><td class="m">blogcz</td><td class="m">minecraft:warden_dig</td></tr></table></div></div></div>
+
+<div class="tp" data-tab="obf"><div class="panel"><p><span data-l="id">Nama persis seperti di pack: <code>sealpe</code> tetap <code>sealpe</code>. Dipotong ke bagian yang dibutuhkan (sprite kepala dan sebagian timeline pada endckw tidak ditampilkan). Tampilan memecah ekspresi per titik koma agar terbaca; tombol Salin mengambil JSON valid.</span><span data-l="en">Names exactly as in the pack: <code>sealpe</code> stays <code>sealpe</code>. Trimmed to the parts we need (the head sprite and part of the timeline of endckw are not shown). The view breaks expressions at each semicolon to be readable; the Copy button takes valid JSON.</span></p><div class="chips"><button class="chip on" data-g="obf" data-show="obf-endckw">endckw</button><button class="chip" data-g="obf" data-show="obf-wrbaad">wrbaad</button><button class="chip" data-g="obf" data-show="obf-pxabgv">pxabgv</button><button class="chip" data-g="obf" data-show="obf-suara"><span data-l="id">suara</span><span data-l="en">sound</span></button></div><div class="cw on" id="obf-endckw" data-g="obf"><div class="ch"><span>ribbon:endckw (rhz.json) <span data-l="id">induk</span><span data-l="en">parent</span></span><button class="mini copy" data-raw="raw-obf-endckw"><span data-l="id">Salin JSON</span><span data-l="en">Copy JSON</span></button></div><pre><code>{
+  &quot;format_version&quot;: &quot;1.10.0&quot;,
+  &quot;particle_effect&quot;: {
+    &quot;description&quot;: {
+      &quot;identifier&quot;: &quot;ribbon:endckw&quot;
+    },
+    &quot;events&quot;: {
+      &quot;bsopxi&quot;: {
+        &quot;sequence&quot;: [
+          {
+            &quot;expression&quot;: &quot;
+                t.lot=0;
+                t.ssu=0;
+                t.tuv=0;
+                t.wij=0;
+                t.ngk=0;
+                t.k=Math.floor(v.emitter_age*v.cpbtni+0.05);
+                (t.k&gt;=(v.ufzvdc??0))&amp;&amp;v.emitter_age&lt;v.gdqxbi*v.cukcoh?{t.hng=v.ufzvdc??0;
+                t.ssu=t.hng/v.cpbtni;
+                t.yrn=v.bzfdek*v.gglvvx*(0.52+0.48*t.ssu/v.cukcoh);
+                t.hqo=Math.max(1,Math.round(v.kzfvux*t.yrn/v.obhshf*v.cpbtni));
+                v.ufzvdc=t.hng+t.hqo;
+                t.tuv=t.hqo/v.cpbtni;
+                t.wij=v.emitter_age-t.ssu;
+                t.ngk=0.5*t.yrn;
+                t.lot=1;
+                };
+                t.vqp=v.gjrwuf*v.brifbs;
+                t.fwk=v.cukcoh;
+                t.rwm=v.wthuxi;
+                t.asd=v.etjjqu;
+                t.ste=v.beroaq;
+                t.iin=v.ztryfb;
+                t.vyr=v.hnhgfv;
+                t.lbd=v.wtvnff;
+                t.ntw=v.bthhlw;
+                t.csc=v.jnlytl;
+                t.agm=v.kuqrrk;
+                t.zwh=v.rfyrjn;
+                t.bgw=v.bwzrya;
+                t.nwr=v.vwnkhl;
+                t.pyw=v.yrmsrz;
+                t.xqr=v.tcfuth;
+                t.was=v.rocdkr;
+                t.pxu=v.uzxsur;
+                t.ayg=v.opkfto;
+                t.hfa=v.lylwux;
+                t.yke=v.zezhjg;
+                t.xyb=v.ncdila;
+                t.tzh=v.xjpjyu;
+                t.lqg=v.lqkmak;
+                t.mbh=v.gglvvx;
+                t.laa=v.obhshf;
+                t.rrp=v.otdjpj;
+                t.hoq=v.kqazqv;
+                t.qtq=v.uegcos;
+                t.ucn=v.bzfdek;
+                t.vrm=v.cffrac;
+            &quot;
+          },
+          {
+            &quot;particle_effect&quot;: {
+              &quot;effect&quot;: &quot;ribbon:wrbaad&quot;,
+              &quot;type&quot;: &quot;emitter&quot;,
+              &quot;pre_effect_expression&quot;: &quot;
+                  v.sealpe=t.lot;
+                  v.ishvtr=t.ssu;
+                  v.qbuziw=t.tuv;
+                  v.hvhmku=t.wij;
+                  v.slxbjl=t.vqp;
+                  v.jybyse=t.ngk;
+                  v.cukcoh=t.fwk;
+                  v.wthuxi=t.rwm;
+                  v.etjjqu=t.asd;
+                  v.beroaq=t.ste;
+                  v.ztryfb=t.iin;
+                  v.hnhgfv=t.vyr;
+                  v.wtvnff=t.lbd;
+                  v.bthhlw=t.ntw;
+                  v.jnlytl=t.csc;
+                  v.kuqrrk=t.agm;
+                  v.rfyrjn=t.zwh;
+                  v.bwzrya=t.bgw;
+                  v.vwnkhl=t.nwr;
+                  v.yrmsrz=t.pyw;
+                  v.tcfuth=t.xqr;
+                  v.rocdkr=t.was;
+                  v.uzxsur=t.pxu;
+                  v.opkfto=t.ayg;
+                  v.lylwux=t.hfa;
+                  v.zezhjg=t.yke;
+                  v.ncdila=t.xyb;
+                  v.xjpjyu=t.tzh;
+                  v.lqkmak=t.lqg;
+                  v.gglvvx=t.mbh;
+                  v.obhshf=t.laa;
+                  v.otdjpj=t.rrp;
+                  v.kqazqv=t.hoq;
+                  v.uegcos=t.qtq;
+                  v.bzfdek=t.ucn;
+                  v.cffrac=t.vrm;
+              &quot;
+            }
+          }
+        ]
+      }
+    },
+    &quot;components&quot;: {
+      &quot;minecraft:emitter_initialization&quot;: {
+        &quot;creation_expression&quot;: &quot;
+            v.wthuxi=v.wthuxi??0;
+            v.cukcoh=Math.random(2.5,4);
+            v.zezhjg=v.emitter_random_1;
+            v.ncdila=v.emitter_random_2;
+            v.xjpjyu=v.emitter_random_3;
+            v.lqkmak=v.emitter_random_4;
+            v.etjjqu=25;
+            v.beroaq=12;
+            v.ztryfb=10;
+            v.hnhgfv=0.15;
+            v.bthhlw=50;
+            v.jnlytl=3;
+            v.kuqrrk=3;
+            v.rfyrjn=1;
+            v.bwzrya=1.5;
+            v.yrmsrz=35;
+            v.tcfuth=0.4;
+            v.lylwux=0.3;
+            v.vwnkhl=-100;
+            v.wtvnff=0;
+            v.rocdkr=0;
+            v.uzxsur=0;
+            v.opkfto=0;
+            v.obhshf=6;
+            v.gglvvx=0.104;
+            v.hvaerk=0;
+            v.otdjpj=0.7;
+            v.kqazqv=0.3;
+            v.uegcos=12;
+            v.cpbtni=30;
+            v.kzfvux=2;
+            v.gdqxbi=1;
+            v.cffrac=0;
+            v.bzfdek=5;
+            v.gjrwuf=1;
+        &quot;,
+        &quot;per_update_expression&quot;: &quot;v.brifbs=Math.clamp(v.emitter_age-(v.wtslzj??0),0,0.1);v.wtslzj=v.emitter_age;&quot;
+      },
+      &quot;minecraft:emitter_rate_instant&quot;: {
+        &quot;num_particles&quot;: &quot;v.hvaerk&quot;
+      },
+      &quot;minecraft:emitter_lifetime_expression&quot;: {
+        &quot;activation_expression&quot;: 1,
+        &quot;expiration_expression&quot;: &quot;v.emitter_age&gt;=v.cukcoh&quot;
+      },
+      &quot;minecraft:emitter_lifetime_events&quot;: {
+        &quot;timeline&quot;: {
+          &quot;0.0000&quot;: &quot;bsopxi&quot;,
+          &quot;0.0333&quot;: &quot;bsopxi&quot;,
+          &quot;0.0667&quot;: &quot;bsopxi&quot;,
+          &quot;3.9667&quot;: &quot;bsopxi&quot;,
+          &quot;4.0000&quot;: &quot;bsopxi&quot;
+        }
+      }
+    }
+  }
+}</code></pre><script type="text/plain" id="raw-obf-endckw">{
+  "format_version": "1.10.0",
+  "particle_effect": {
+    "description": {
+      "identifier": "ribbon:endckw"
+    },
+    "events": {
+      "bsopxi": {
+        "sequence": [
+          {
+            "expression": "t.lot=0;t.ssu=0;t.tuv=0;t.wij=0;t.ngk=0;t.k=Math.floor(v.emitter_age*v.cpbtni+0.05);(t.k>=(v.ufzvdc??0))&&v.emitter_age<v.gdqxbi*v.cukcoh?{t.hng=v.ufzvdc??0;t.ssu=t.hng/v.cpbtni;t.yrn=v.bzfdek*v.gglvvx*(0.52+0.48*t.ssu/v.cukcoh);t.hqo=Math.max(1,Math.round(v.kzfvux*t.yrn/v.obhshf*v.cpbtni));v.ufzvdc=t.hng+t.hqo;t.tuv=t.hqo/v.cpbtni;t.wij=v.emitter_age-t.ssu;t.ngk=0.5*t.yrn;t.lot=1;};t.vqp=v.gjrwuf*v.brifbs;t.fwk=v.cukcoh;t.rwm=v.wthuxi;t.asd=v.etjjqu;t.ste=v.beroaq;t.iin=v.ztryfb;t.vyr=v.hnhgfv;t.lbd=v.wtvnff;t.ntw=v.bthhlw;t.csc=v.jnlytl;t.agm=v.kuqrrk;t.zwh=v.rfyrjn;t.bgw=v.bwzrya;t.nwr=v.vwnkhl;t.pyw=v.yrmsrz;t.xqr=v.tcfuth;t.was=v.rocdkr;t.pxu=v.uzxsur;t.ayg=v.opkfto;t.hfa=v.lylwux;t.yke=v.zezhjg;t.xyb=v.ncdila;t.tzh=v.xjpjyu;t.lqg=v.lqkmak;t.mbh=v.gglvvx;t.laa=v.obhshf;t.rrp=v.otdjpj;t.hoq=v.kqazqv;t.qtq=v.uegcos;t.ucn=v.bzfdek;t.vrm=v.cffrac;"
+          },
+          {
+            "particle_effect": {
+              "effect": "ribbon:wrbaad",
+              "type": "emitter",
+              "pre_effect_expression": "v.sealpe=t.lot;v.ishvtr=t.ssu;v.qbuziw=t.tuv;v.hvhmku=t.wij;v.slxbjl=t.vqp;v.jybyse=t.ngk;v.cukcoh=t.fwk;v.wthuxi=t.rwm;v.etjjqu=t.asd;v.beroaq=t.ste;v.ztryfb=t.iin;v.hnhgfv=t.vyr;v.wtvnff=t.lbd;v.bthhlw=t.ntw;v.jnlytl=t.csc;v.kuqrrk=t.agm;v.rfyrjn=t.zwh;v.bwzrya=t.bgw;v.vwnkhl=t.nwr;v.yrmsrz=t.pyw;v.tcfuth=t.xqr;v.rocdkr=t.was;v.uzxsur=t.pxu;v.opkfto=t.ayg;v.lylwux=t.hfa;v.zezhjg=t.yke;v.ncdila=t.xyb;v.xjpjyu=t.tzh;v.lqkmak=t.lqg;v.gglvvx=t.mbh;v.obhshf=t.laa;v.otdjpj=t.rrp;v.kqazqv=t.hoq;v.uegcos=t.qtq;v.bzfdek=t.ucn;v.cffrac=t.vrm;"
+            }
+          }
+        ]
+      }
+    },
+    "components": {
+      "minecraft:emitter_initialization": {
+        "creation_expression": "v.wthuxi=v.wthuxi??0;v.cukcoh=Math.random(2.5,4);v.zezhjg=v.emitter_random_1;v.ncdila=v.emitter_random_2;v.xjpjyu=v.emitter_random_3;v.lqkmak=v.emitter_random_4;v.etjjqu=25;v.beroaq=12;v.ztryfb=10;v.hnhgfv=0.15;v.bthhlw=50;v.jnlytl=3;v.kuqrrk=3;v.rfyrjn=1;v.bwzrya=1.5;v.yrmsrz=35;v.tcfuth=0.4;v.lylwux=0.3;v.vwnkhl=-100;v.wtvnff=0;v.rocdkr=0;v.uzxsur=0;v.opkfto=0;v.obhshf=6;v.gglvvx=0.104;v.hvaerk=0;v.otdjpj=0.7;v.kqazqv=0.3;v.uegcos=12;v.cpbtni=30;v.kzfvux=2;v.gdqxbi=1;v.cffrac=0;v.bzfdek=5;v.gjrwuf=1;",
+        "per_update_expression": "v.brifbs=Math.clamp(v.emitter_age-(v.wtslzj??0),0,0.1);v.wtslzj=v.emitter_age;"
+      },
+      "minecraft:emitter_rate_instant": {
+        "num_particles": "v.hvaerk"
+      },
+      "minecraft:emitter_lifetime_expression": {
+        "activation_expression": 1,
+        "expiration_expression": "v.emitter_age>=v.cukcoh"
+      },
+      "minecraft:emitter_lifetime_events": {
+        "timeline": {
+          "0.0000": "bsopxi",
+          "0.0333": "bsopxi",
+          "0.0667": "bsopxi",
+          "3.9667": "bsopxi",
+          "4.0000": "bsopxi"
+        }
+      }
+    }
+  }
+}</script></div><div class="cw" id="obf-wrbaad" data-g="obf"><div class="ch"><span>ribbon:wrbaad (rjo.json) <span data-l="id">anak = segmen</span><span data-l="en">child = segment</span></span><button class="mini copy" data-raw="raw-obf-wrbaad"><span data-l="id">Salin JSON</span><span data-l="en">Copy JSON</span></button></div><pre><code>{
+  &quot;format_version&quot;: &quot;1.10.0&quot;,
+  &quot;particle_effect&quot;: {
+    &quot;description&quot;: {
+      &quot;identifier&quot;: &quot;ribbon:wrbaad&quot;,
+      &quot;basic_render_parameters&quot;: {
+        &quot;material&quot;: &quot;particles_blend&quot;,
+        &quot;texture&quot;: &quot;textures/ribbon/ans/qcz&quot;
+      }
+    },
+    &quot;components&quot;: {
+      &quot;minecraft:emitter_rate_instant&quot;: {
+        &quot;num_particles&quot;: 1
+      },
+      &quot;minecraft:emitter_lifetime_expression&quot;: {
+        &quot;activation_expression&quot;: &quot;v.sealpe??0&quot;,
+        &quot;expiration_expression&quot;: &quot;(v.wnaarx??0)||!(v.sealpe??1)&quot;
+      },
+      &quot;minecraft:particle_lifetime_expression&quot;: {
+        &quot;max_lifetime&quot;: 10,
+        &quot;expiration_expression&quot;: &quot;(v.ezlwot??0)&amp;&amp;(v.adphax??0)&gt;=(v.mbjzhu??1)&quot;
+      },
+      &quot;minecraft:particle_initialization&quot;: {
+        &quot;per_update_expression&quot;: &quot;
+            t.jyz=v.zezhjg;
+            t.fmp=v.ncdila;
+            t.uiw=v.xjpjyu;
+            t.hgg=v.lqkmak;
+            t.lnq=t.fmp&lt;0.5?-1:1;
+            t.xtk=1+(2*Math.mod(t.hgg*7907,1)-1)*v.opkfto;
+            t.efd=t.lnq*Math.max(v.yrmsrz*(1+(2*t.uiw-1)*v.tcfuth),0.01);
+            t.ibe=t.efd*Math.pi/180;
+            t.moa=v.wthuxi+v.wtvnff+(t.jyz-0.5)*v.bthhlw;
+            t.hzh=Math.cos(t.moa);
+            t.dmb=Math.sin(t.moa);
+            t.pea=v.etjjqu+(2*t.hgg-1)*v.beroaq;
+            t.bbs=v.ztryfb*(1+(2*Math.mod(t.jyz*7919,1)-1)*v.hnhgfv);
+            t.oyt=t.bbs*Math.cos(t.pea)-v.kuqrrk;
+            t.cub=t.bbs*Math.sin(t.pea)-v.rfyrjn;
+            t.dkm=v.jnlytl*v.jnlytl+t.ibe*t.ibe;
+            t.alv=(Math.mod(t.fmp*6271,1)-0.5)*v.lylwux;
+            t.lhv=(Math.mod(t.uiw*4513,1)-0.5)*0.5*v.lylwux;
+            t.ilt=v.uzxsur*(0.75+0.5*Math.mod(t.jyz*2713,1));
+            t.kwl=360*Math.mod(t.uiw*3571,1);
+            t.byr=v.ishvtr+v.particle_age+v.hvhmku+v.slxbjl;
+            t.psw=v.ishvtr+v.qbuziw;
+            t.saf=v.uegcos*v.bzfdek*v.gglvvx*(0.52+0.48*t.byr/v.cukcoh)/v.obhshf;
+            !(v.ezlwot??0)?{t.asn=t.byr&lt;t.psw+v.slxbjl?t.byr:t.psw;
+            v.ezlwot=t.asn==t.psw;
+            v.mbjzhu=t.asn;
+            t.qtr=t.asn+0.01;
+            t.bmb=t.qtr*t.xtk;
+            t.jor=Math.exp(-v.jnlytl*t.bmb);
+            t.gzs=Math.cos(t.efd*t.bmb);
+            t.puw=Math.sin(t.efd*t.bmb);
+            t.kvo=t.alv+v.rocdkr*(1-Math.exp(-2*t.bmb))*Math.sin(360*t.ilt*t.bmb+t.kwl)+v.kuqrrk*(1-t.gzs)/t.ibe+t.oyt*(t.ibe*(1-t.jor*t.gzs)-v.jnlytl*t.jor*t.puw)/t.dkm;
+            t.bmd=v.kuqrrk*t.puw/t.ibe+t.oyt*(v.jnlytl*(1-t.jor*t.gzs)+t.ibe*t.jor*t.puw)/t.dkm;
+            t.bvy=t.kvo*t.hzh-t.bmd*t.dmb;
+            t.oxj=(t.lhv+v.rfyrjn*t.bmb+t.cub*(1-t.jor)/v.jnlytl+0.5*v.bwzrya*t.bmb*t.bmb-v.vwnkhl)/0.3;
+            t.phn=v.vwnkhl+0.3*(Math.max(t.oxj,0)+Math.ln(1+Math.exp(-Math.abs(t.oxj))));
+            t.uee=t.kvo*t.dmb+t.bmd*t.hzh;
+            t.wst=t.bvy;
+            t.fnw=t.phn;
+            t.jtr=t.uee;
+            t.qtr=t.asn-0.01;
+            t.bmb=t.qtr*t.xtk;
+            t.jor=Math.exp(-v.jnlytl*t.bmb);
+            t.gzs=Math.cos(t.efd*t.bmb);
+            t.puw=Math.sin(t.efd*t.bmb);
+            t.kvo=t.alv+v.rocdkr*(1-Math.exp(-2*t.bmb))*Math.sin(360*t.ilt*t.bmb+t.kwl)+v.kuqrrk*(1-t.gzs)/t.ibe+t.oyt*(t.ibe*(1-t.jor*t.gzs)-v.jnlytl*t.jor*t.puw)/t.dkm;
+            t.bmd=v.kuqrrk*t.puw/t.ibe+t.oyt*(v.jnlytl*(1-t.jor*t.gzs)+t.ibe*t.jor*t.puw)/t.dkm;
+            t.bvy=t.kvo*t.hzh-t.bmd*t.dmb;
+            t.oxj=(t.lhv+v.rfyrjn*t.bmb+t.cub*(1-t.jor)/v.jnlytl+0.5*v.bwzrya*t.bmb*t.bmb-v.vwnkhl)/0.3;
+            t.phn=v.vwnkhl+0.3*(Math.max(t.oxj,0)+Math.ln(1+Math.exp(-Math.abs(t.oxj))));
+            t.uee=t.kvo*t.dmb+t.bmd*t.hzh;
+            t.wst=t.wst-t.bvy;
+            t.fnw=t.fnw-t.phn;
+            t.jtr=t.jtr-t.uee;
+            t.qtr=t.asn;
+            t.bmb=t.qtr*t.xtk;
+            t.jor=Math.exp(-v.jnlytl*t.bmb);
+            t.gzs=Math.cos(t.efd*t.bmb);
+            t.puw=Math.sin(t.efd*t.bmb);
+            t.kvo=t.alv+v.rocdkr*(1-Math.exp(-2*t.bmb))*Math.sin(360*t.ilt*t.bmb+t.kwl)+v.kuqrrk*(1-t.gzs)/t.ibe+t.oyt*(t.ibe*(1-t.jor*t.gzs)-v.jnlytl*t.jor*t.puw)/t.dkm;
+            t.bmd=v.kuqrrk*t.puw/t.ibe+t.oyt*(v.jnlytl*(1-t.jor*t.gzs)+t.ibe*t.jor*t.puw)/t.dkm;
+            t.bvy=t.kvo*t.hzh-t.bmd*t.dmb;
+            t.oxj=(t.lhv+v.rfyrjn*t.bmb+t.cub*(1-t.jor)/v.jnlytl+0.5*v.bwzrya*t.bmb*t.bmb-v.vwnkhl)/0.3;
+            t.phn=v.vwnkhl+0.3*(Math.max(t.oxj,0)+Math.ln(1+Math.exp(-Math.abs(t.oxj))));
+            t.uee=t.kvo*t.dmb+t.bmd*t.hzh;
+            t.f=v.cffrac*v.gglvvx*(0.52+0.48*t.asn/v.cukcoh)/Math.sqrt(t.wst*t.wst+t.fnw*t.fnw+t.jtr*t.jtr);
+            t.bvy=t.bvy-t.wst*t.f;
+            t.phn=t.phn-t.fnw*t.f;
+            t.uee=t.uee-t.jtr*t.f;
+            v.kgobpa=t.bvy;
+            v.btvsmm=t.phn;
+            v.rkkgoo=t.uee;
+            };
+            t.asn=Math.max(v.ishvtr,t.byr-t.saf);
+            (t.asn&gt;v.ishvtr||!(v.gbvvfl??0))?{v.gbvvfl=1;
+            v.adphax=t.asn;
+            t.qtr=t.asn+0.01;
+            t.bmb=t.qtr*t.xtk;
+            t.jor=Math.exp(-v.jnlytl*t.bmb);
+            t.gzs=Math.cos(t.efd*t.bmb);
+            t.puw=Math.sin(t.efd*t.bmb);
+            t.kvo=t.alv+v.rocdkr*(1-Math.exp(-2*t.bmb))*Math.sin(360*t.ilt*t.bmb+t.kwl)+v.kuqrrk*(1-t.gzs)/t.ibe+t.oyt*(t.ibe*(1-t.jor*t.gzs)-v.jnlytl*t.jor*t.puw)/t.dkm;
+            t.bmd=v.kuqrrk*t.puw/t.ibe+t.oyt*(v.jnlytl*(1-t.jor*t.gzs)+t.ibe*t.jor*t.puw)/t.dkm;
+            t.bvy=t.kvo*t.hzh-t.bmd*t.dmb;
+            t.oxj=(t.lhv+v.rfyrjn*t.bmb+t.cub*(1-t.jor)/v.jnlytl+0.5*v.bwzrya*t.bmb*t.bmb-v.vwnkhl)/0.3;
+            t.phn=v.vwnkhl+0.3*(Math.max(t.oxj,0)+Math.ln(1+Math.exp(-Math.abs(t.oxj))));
+            t.uee=t.kvo*t.dmb+t.bmd*t.hzh;
+            t.wst=t.bvy;
+            t.fnw=t.phn;
+            t.jtr=t.uee;
+            t.qtr=t.asn-0.01;
+            t.bmb=t.qtr*t.xtk;
+            t.jor=Math.exp(-v.jnlytl*t.bmb);
+            t.gzs=Math.cos(t.efd*t.bmb);
+            t.puw=Math.sin(t.efd*t.bmb);
+            t.kvo=t.alv+v.rocdkr*(1-Math.exp(-2*t.bmb))*Math.sin(360*t.ilt*t.bmb+t.kwl)+v.kuqrrk*(1-t.gzs)/t.ibe+t.oyt*(t.ibe*(1-t.jor*t.gzs)-v.jnlytl*t.jor*t.puw)/t.dkm;
+            t.bmd=v.kuqrrk*t.puw/t.ibe+t.oyt*(v.jnlytl*(1-t.jor*t.gzs)+t.ibe*t.jor*t.puw)/t.dkm;
+            t.bvy=t.kvo*t.hzh-t.bmd*t.dmb;
+            t.oxj=(t.lhv+v.rfyrjn*t.bmb+t.cub*(1-t.jor)/v.jnlytl+0.5*v.bwzrya*t.bmb*t.bmb-v.vwnkhl)/0.3;
+            t.phn=v.vwnkhl+0.3*(Math.max(t.oxj,0)+Math.ln(1+Math.exp(-Math.abs(t.oxj))));
+            t.uee=t.kvo*t.dmb+t.bmd*t.hzh;
+            t.wst=t.wst-t.bvy;
+            t.fnw=t.fnw-t.phn;
+            t.jtr=t.jtr-t.uee;
+            t.qtr=t.asn;
+            t.bmb=t.qtr*t.xtk;
+            t.jor=Math.exp(-v.jnlytl*t.bmb);
+            t.gzs=Math.cos(t.efd*t.bmb);
+            t.puw=Math.sin(t.efd*t.bmb);
+            t.kvo=t.alv+v.rocdkr*(1-Math.exp(-2*t.bmb))*Math.sin(360*t.ilt*t.bmb+t.kwl)+v.kuqrrk*(1-t.gzs)/t.ibe+t.oyt*(t.ibe*(1-t.jor*t.gzs)-v.jnlytl*t.jor*t.puw)/t.dkm;
+            t.bmd=v.kuqrrk*t.puw/t.ibe+t.oyt*(v.jnlytl*(1-t.jor*t.gzs)+t.ibe*t.jor*t.puw)/t.dkm;
+            t.bvy=t.kvo*t.hzh-t.bmd*t.dmb;
+            t.oxj=(t.lhv+v.rfyrjn*t.bmb+t.cub*(1-t.jor)/v.jnlytl+0.5*v.bwzrya*t.bmb*t.bmb-v.vwnkhl)/0.3;
+            t.phn=v.vwnkhl+0.3*(Math.max(t.oxj,0)+Math.ln(1+Math.exp(-Math.abs(t.oxj))));
+            t.uee=t.kvo*t.dmb+t.bmd*t.hzh;
+            t.f=v.cffrac*v.gglvvx*(0.52+0.48*t.asn/v.cukcoh)/Math.sqrt(t.wst*t.wst+t.fnw*t.fnw+t.jtr*t.jtr);
+            t.bvy=t.bvy-t.wst*t.f;
+            t.phn=t.phn-t.fnw*t.f;
+            t.uee=t.uee-t.jtr*t.f;
+            v.sbhmli=t.bvy;
+            v.yastfm=t.phn;
+            v.gnpcix=t.uee;
+            };
+            v.zjnsat=v.kgobpa-v.sbhmli;
+            v.sfekmw=v.btvsmm-v.yastfm;
+            v.wtabsj=v.rkkgoo-v.gnpcix;
+            t.fsd=Math.max(Math.sqrt(v.zjnsat*v.zjnsat+v.sfekmw*v.sfekmw+v.wtabsj*v.wtabsj),1.0E-4);
+            v.cfglpd=0.5*t.fsd;
+            v.rowpry=v.zjnsat/t.fsd;
+            v.rgwjra=v.sfekmw/t.fsd;
+            v.ipczvr=v.wtabsj/t.fsd;
+            v.nviqsz=(t.byr-v.mbjzhu)/t.saf;
+            v.sbiadh=(v.mbjzhu-v.adphax)/t.saf;
+            v.jsnlhn=Math.hermite_blend(Math.clamp((1-t.byr/v.cukcoh)/v.kqazqv,0,1));
+        &quot;
+      },
+      &quot;minecraft:particle_motion_parametric&quot;: {
+        &quot;relative_position&quot;: [
+          &quot;(v.sbhmli??0)+(v.zjnsat??0)/2&quot;,
+          &quot;(v.yastfm??0)+(v.sfekmw??0)/2&quot;,
+          &quot;(v.gnpcix??0)+(v.wtabsj??0)/2&quot;
+        ]
+      },
+      &quot;minecraft:particle_lifetime_events&quot;: {
+        &quot;creation_event&quot;: &quot;kfjwfy&quot;
+      },
+      &quot;minecraft:particle_initial_spin&quot;: {
+        &quot;rotation&quot;: -90
+      },
+      &quot;minecraft:particle_appearance_billboard&quot;: {
+        &quot;size&quot;: [
+          &quot;v.jybyse&quot;,
+          &quot;v.cfglpd??0&quot;
+        ],
+        &quot;facing_camera_mode&quot;: &quot;lookat_direction&quot;,
+        &quot;direction&quot;: {
+          &quot;mode&quot;: &quot;custom&quot;,
+          &quot;custom_direction&quot;: [
+            &quot;v.rowpry??0&quot;,
+            &quot;v.rgwjra??1&quot;,
+            &quot;v.ipczvr??0&quot;
+          ]
+        },
+        &quot;uv&quot;: {
+          &quot;texture_width&quot;: 1,
+          &quot;texture_height&quot;: 1,
+          &quot;uv&quot;: [
+            0,
+            &quot;v.nviqsz??1&quot;
+          ],
+          &quot;uv_size&quot;: [
+            1,
+            &quot;v.sbiadh??0&quot;
+          ]
+        }
+      },
+      &quot;minecraft:particle_appearance_tinting&quot;: {
+        &quot;color&quot;: [
+          1,
+          1,
+          1,
+          &quot;v.otdjpj*(v.jsnlhn??1)&quot;
+        ]
+      }
+    },
+    &quot;events&quot;: {
+      &quot;kfjwfy&quot;: {
+        &quot;expression&quot;: &quot;v.wnaarx=1;&quot;
+      }
+    }
+  }
+}</code></pre><script type="text/plain" id="raw-obf-wrbaad">{
+  "format_version": "1.10.0",
+  "particle_effect": {
+    "description": {
+      "identifier": "ribbon:wrbaad",
+      "basic_render_parameters": {
+        "material": "particles_blend",
+        "texture": "textures/ribbon/ans/qcz"
+      }
+    },
+    "components": {
+      "minecraft:emitter_rate_instant": {
+        "num_particles": 1
+      },
+      "minecraft:emitter_lifetime_expression": {
+        "activation_expression": "v.sealpe??0",
+        "expiration_expression": "(v.wnaarx??0)||!(v.sealpe??1)"
+      },
+      "minecraft:particle_lifetime_expression": {
+        "max_lifetime": 10,
+        "expiration_expression": "(v.ezlwot??0)&&(v.adphax??0)>=(v.mbjzhu??1)"
+      },
+      "minecraft:particle_initialization": {
+        "per_update_expression": "t.jyz=v.zezhjg;t.fmp=v.ncdila;t.uiw=v.xjpjyu;t.hgg=v.lqkmak;t.lnq=t.fmp<0.5?-1:1;t.xtk=1+(2*Math.mod(t.hgg*7907,1)-1)*v.opkfto;t.efd=t.lnq*Math.max(v.yrmsrz*(1+(2*t.uiw-1)*v.tcfuth),0.01);t.ibe=t.efd*Math.pi/180;t.moa=v.wthuxi+v.wtvnff+(t.jyz-0.5)*v.bthhlw;t.hzh=Math.cos(t.moa);t.dmb=Math.sin(t.moa);t.pea=v.etjjqu+(2*t.hgg-1)*v.beroaq;t.bbs=v.ztryfb*(1+(2*Math.mod(t.jyz*7919,1)-1)*v.hnhgfv);t.oyt=t.bbs*Math.cos(t.pea)-v.kuqrrk;t.cub=t.bbs*Math.sin(t.pea)-v.rfyrjn;t.dkm=v.jnlytl*v.jnlytl+t.ibe*t.ibe;t.alv=(Math.mod(t.fmp*6271,1)-0.5)*v.lylwux;t.lhv=(Math.mod(t.uiw*4513,1)-0.5)*0.5*v.lylwux;t.ilt=v.uzxsur*(0.75+0.5*Math.mod(t.jyz*2713,1));t.kwl=360*Math.mod(t.uiw*3571,1);t.byr=v.ishvtr+v.particle_age+v.hvhmku+v.slxbjl;t.psw=v.ishvtr+v.qbuziw;t.saf=v.uegcos*v.bzfdek*v.gglvvx*(0.52+0.48*t.byr/v.cukcoh)/v.obhshf;!(v.ezlwot??0)?{t.asn=t.byr<t.psw+v.slxbjl?t.byr:t.psw;v.ezlwot=t.asn==t.psw;v.mbjzhu=t.asn;t.qtr=t.asn+0.01;t.bmb=t.qtr*t.xtk;t.jor=Math.exp(-v.jnlytl*t.bmb);t.gzs=Math.cos(t.efd*t.bmb);t.puw=Math.sin(t.efd*t.bmb);t.kvo=t.alv+v.rocdkr*(1-Math.exp(-2*t.bmb))*Math.sin(360*t.ilt*t.bmb+t.kwl)+v.kuqrrk*(1-t.gzs)/t.ibe+t.oyt*(t.ibe*(1-t.jor*t.gzs)-v.jnlytl*t.jor*t.puw)/t.dkm;t.bmd=v.kuqrrk*t.puw/t.ibe+t.oyt*(v.jnlytl*(1-t.jor*t.gzs)+t.ibe*t.jor*t.puw)/t.dkm;t.bvy=t.kvo*t.hzh-t.bmd*t.dmb;t.oxj=(t.lhv+v.rfyrjn*t.bmb+t.cub*(1-t.jor)/v.jnlytl+0.5*v.bwzrya*t.bmb*t.bmb-v.vwnkhl)/0.3;t.phn=v.vwnkhl+0.3*(Math.max(t.oxj,0)+Math.ln(1+Math.exp(-Math.abs(t.oxj))));t.uee=t.kvo*t.dmb+t.bmd*t.hzh;t.wst=t.bvy;t.fnw=t.phn;t.jtr=t.uee;t.qtr=t.asn-0.01;t.bmb=t.qtr*t.xtk;t.jor=Math.exp(-v.jnlytl*t.bmb);t.gzs=Math.cos(t.efd*t.bmb);t.puw=Math.sin(t.efd*t.bmb);t.kvo=t.alv+v.rocdkr*(1-Math.exp(-2*t.bmb))*Math.sin(360*t.ilt*t.bmb+t.kwl)+v.kuqrrk*(1-t.gzs)/t.ibe+t.oyt*(t.ibe*(1-t.jor*t.gzs)-v.jnlytl*t.jor*t.puw)/t.dkm;t.bmd=v.kuqrrk*t.puw/t.ibe+t.oyt*(v.jnlytl*(1-t.jor*t.gzs)+t.ibe*t.jor*t.puw)/t.dkm;t.bvy=t.kvo*t.hzh-t.bmd*t.dmb;t.oxj=(t.lhv+v.rfyrjn*t.bmb+t.cub*(1-t.jor)/v.jnlytl+0.5*v.bwzrya*t.bmb*t.bmb-v.vwnkhl)/0.3;t.phn=v.vwnkhl+0.3*(Math.max(t.oxj,0)+Math.ln(1+Math.exp(-Math.abs(t.oxj))));t.uee=t.kvo*t.dmb+t.bmd*t.hzh;t.wst=t.wst-t.bvy;t.fnw=t.fnw-t.phn;t.jtr=t.jtr-t.uee;t.qtr=t.asn;t.bmb=t.qtr*t.xtk;t.jor=Math.exp(-v.jnlytl*t.bmb);t.gzs=Math.cos(t.efd*t.bmb);t.puw=Math.sin(t.efd*t.bmb);t.kvo=t.alv+v.rocdkr*(1-Math.exp(-2*t.bmb))*Math.sin(360*t.ilt*t.bmb+t.kwl)+v.kuqrrk*(1-t.gzs)/t.ibe+t.oyt*(t.ibe*(1-t.jor*t.gzs)-v.jnlytl*t.jor*t.puw)/t.dkm;t.bmd=v.kuqrrk*t.puw/t.ibe+t.oyt*(v.jnlytl*(1-t.jor*t.gzs)+t.ibe*t.jor*t.puw)/t.dkm;t.bvy=t.kvo*t.hzh-t.bmd*t.dmb;t.oxj=(t.lhv+v.rfyrjn*t.bmb+t.cub*(1-t.jor)/v.jnlytl+0.5*v.bwzrya*t.bmb*t.bmb-v.vwnkhl)/0.3;t.phn=v.vwnkhl+0.3*(Math.max(t.oxj,0)+Math.ln(1+Math.exp(-Math.abs(t.oxj))));t.uee=t.kvo*t.dmb+t.bmd*t.hzh;t.f=v.cffrac*v.gglvvx*(0.52+0.48*t.asn/v.cukcoh)/Math.sqrt(t.wst*t.wst+t.fnw*t.fnw+t.jtr*t.jtr);t.bvy=t.bvy-t.wst*t.f;t.phn=t.phn-t.fnw*t.f;t.uee=t.uee-t.jtr*t.f;v.kgobpa=t.bvy;v.btvsmm=t.phn;v.rkkgoo=t.uee;};t.asn=Math.max(v.ishvtr,t.byr-t.saf);(t.asn>v.ishvtr||!(v.gbvvfl??0))?{v.gbvvfl=1;v.adphax=t.asn;t.qtr=t.asn+0.01;t.bmb=t.qtr*t.xtk;t.jor=Math.exp(-v.jnlytl*t.bmb);t.gzs=Math.cos(t.efd*t.bmb);t.puw=Math.sin(t.efd*t.bmb);t.kvo=t.alv+v.rocdkr*(1-Math.exp(-2*t.bmb))*Math.sin(360*t.ilt*t.bmb+t.kwl)+v.kuqrrk*(1-t.gzs)/t.ibe+t.oyt*(t.ibe*(1-t.jor*t.gzs)-v.jnlytl*t.jor*t.puw)/t.dkm;t.bmd=v.kuqrrk*t.puw/t.ibe+t.oyt*(v.jnlytl*(1-t.jor*t.gzs)+t.ibe*t.jor*t.puw)/t.dkm;t.bvy=t.kvo*t.hzh-t.bmd*t.dmb;t.oxj=(t.lhv+v.rfyrjn*t.bmb+t.cub*(1-t.jor)/v.jnlytl+0.5*v.bwzrya*t.bmb*t.bmb-v.vwnkhl)/0.3;t.phn=v.vwnkhl+0.3*(Math.max(t.oxj,0)+Math.ln(1+Math.exp(-Math.abs(t.oxj))));t.uee=t.kvo*t.dmb+t.bmd*t.hzh;t.wst=t.bvy;t.fnw=t.phn;t.jtr=t.uee;t.qtr=t.asn-0.01;t.bmb=t.qtr*t.xtk;t.jor=Math.exp(-v.jnlytl*t.bmb);t.gzs=Math.cos(t.efd*t.bmb);t.puw=Math.sin(t.efd*t.bmb);t.kvo=t.alv+v.rocdkr*(1-Math.exp(-2*t.bmb))*Math.sin(360*t.ilt*t.bmb+t.kwl)+v.kuqrrk*(1-t.gzs)/t.ibe+t.oyt*(t.ibe*(1-t.jor*t.gzs)-v.jnlytl*t.jor*t.puw)/t.dkm;t.bmd=v.kuqrrk*t.puw/t.ibe+t.oyt*(v.jnlytl*(1-t.jor*t.gzs)+t.ibe*t.jor*t.puw)/t.dkm;t.bvy=t.kvo*t.hzh-t.bmd*t.dmb;t.oxj=(t.lhv+v.rfyrjn*t.bmb+t.cub*(1-t.jor)/v.jnlytl+0.5*v.bwzrya*t.bmb*t.bmb-v.vwnkhl)/0.3;t.phn=v.vwnkhl+0.3*(Math.max(t.oxj,0)+Math.ln(1+Math.exp(-Math.abs(t.oxj))));t.uee=t.kvo*t.dmb+t.bmd*t.hzh;t.wst=t.wst-t.bvy;t.fnw=t.fnw-t.phn;t.jtr=t.jtr-t.uee;t.qtr=t.asn;t.bmb=t.qtr*t.xtk;t.jor=Math.exp(-v.jnlytl*t.bmb);t.gzs=Math.cos(t.efd*t.bmb);t.puw=Math.sin(t.efd*t.bmb);t.kvo=t.alv+v.rocdkr*(1-Math.exp(-2*t.bmb))*Math.sin(360*t.ilt*t.bmb+t.kwl)+v.kuqrrk*(1-t.gzs)/t.ibe+t.oyt*(t.ibe*(1-t.jor*t.gzs)-v.jnlytl*t.jor*t.puw)/t.dkm;t.bmd=v.kuqrrk*t.puw/t.ibe+t.oyt*(v.jnlytl*(1-t.jor*t.gzs)+t.ibe*t.jor*t.puw)/t.dkm;t.bvy=t.kvo*t.hzh-t.bmd*t.dmb;t.oxj=(t.lhv+v.rfyrjn*t.bmb+t.cub*(1-t.jor)/v.jnlytl+0.5*v.bwzrya*t.bmb*t.bmb-v.vwnkhl)/0.3;t.phn=v.vwnkhl+0.3*(Math.max(t.oxj,0)+Math.ln(1+Math.exp(-Math.abs(t.oxj))));t.uee=t.kvo*t.dmb+t.bmd*t.hzh;t.f=v.cffrac*v.gglvvx*(0.52+0.48*t.asn/v.cukcoh)/Math.sqrt(t.wst*t.wst+t.fnw*t.fnw+t.jtr*t.jtr);t.bvy=t.bvy-t.wst*t.f;t.phn=t.phn-t.fnw*t.f;t.uee=t.uee-t.jtr*t.f;v.sbhmli=t.bvy;v.yastfm=t.phn;v.gnpcix=t.uee;};v.zjnsat=v.kgobpa-v.sbhmli;v.sfekmw=v.btvsmm-v.yastfm;v.wtabsj=v.rkkgoo-v.gnpcix;t.fsd=Math.max(Math.sqrt(v.zjnsat*v.zjnsat+v.sfekmw*v.sfekmw+v.wtabsj*v.wtabsj),1.0E-4);v.cfglpd=0.5*t.fsd;v.rowpry=v.zjnsat/t.fsd;v.rgwjra=v.sfekmw/t.fsd;v.ipczvr=v.wtabsj/t.fsd;v.nviqsz=(t.byr-v.mbjzhu)/t.saf;v.sbiadh=(v.mbjzhu-v.adphax)/t.saf;v.jsnlhn=Math.hermite_blend(Math.clamp((1-t.byr/v.cukcoh)/v.kqazqv,0,1));"
+      },
+      "minecraft:particle_motion_parametric": {
+        "relative_position": [
+          "(v.sbhmli??0)+(v.zjnsat??0)/2",
+          "(v.yastfm??0)+(v.sfekmw??0)/2",
+          "(v.gnpcix??0)+(v.wtabsj??0)/2"
+        ]
+      },
+      "minecraft:particle_lifetime_events": {
+        "creation_event": "kfjwfy"
+      },
+      "minecraft:particle_initial_spin": {
+        "rotation": -90
+      },
+      "minecraft:particle_appearance_billboard": {
+        "size": [
+          "v.jybyse",
+          "v.cfglpd??0"
+        ],
+        "facing_camera_mode": "lookat_direction",
+        "direction": {
+          "mode": "custom",
+          "custom_direction": [
+            "v.rowpry??0",
+            "v.rgwjra??1",
+            "v.ipczvr??0"
+          ]
+        },
+        "uv": {
+          "texture_width": 1,
+          "texture_height": 1,
+          "uv": [
+            0,
+            "v.nviqsz??1"
+          ],
+          "uv_size": [
+            1,
+            "v.sbiadh??0"
+          ]
+        }
+      },
+      "minecraft:particle_appearance_tinting": {
+        "color": [
+          1,
+          1,
+          1,
+          "v.otdjpj*(v.jsnlhn??1)"
+        ]
+      }
+    },
+    "events": {
+      "kfjwfy": {
+        "expression": "v.wnaarx=1;"
+      }
+    }
+  }
+}</script></div><div class="cw" id="obf-pxabgv" data-g="obf"><div class="ch"><span>ribbon:pxabgv (rhs.json) <span data-l="id">dispatcher efek kematian</span><span data-l="en">death effect dispatcher</span></span><button class="mini copy" data-raw="raw-obf-pxabgv"><span data-l="id">Salin JSON</span><span data-l="en">Copy JSON</span></button></div><pre><code>{
+  &quot;format_version&quot;: &quot;1.10.0&quot;,
+  &quot;particle_effect&quot;: {
+    &quot;description&quot;: {
+      &quot;identifier&quot;: &quot;ribbon:pxabgv&quot;,
+      &quot;basic_render_parameters&quot;: {
+        &quot;material&quot;: &quot;particles_alpha&quot;,
+        &quot;texture&quot;: &quot;textures/ribbon/dgk&quot;
+      }
+    },
+    &quot;events&quot;: {
+      &quot;xavtau&quot;: {
+        &quot;sequence&quot;: [
+          {
+            &quot;expression&quot;: &quot;t.mzj=v.kviigs;t.mto=v.ymfcwu;&quot;
+          },
+          {
+            &quot;particle_effect&quot;: {
+              &quot;effect&quot;: &quot;ribbon:hzxbiw&quot;,
+              &quot;type&quot;: &quot;emitter&quot;,
+              &quot;pre_effect_expression&quot;: &quot;v.kviigs=t.mzj;v.kozdua=4;v.ymfcwu=t.mto;&quot;
+            }
+          }
+        ]
+      }
+    },
+    &quot;components&quot;: {
+      &quot;minecraft:emitter_initialization&quot;: {
+        &quot;creation_expression&quot;: &quot;v.kviigs=v.kviigs??1;v.ymfcwu=v.ymfcwu??0;&quot;
+      },
+      &quot;minecraft:emitter_rate_instant&quot;: {
+        &quot;num_particles&quot;: 1
+      },
+      &quot;minecraft:emitter_lifetime_once&quot;: {
+        &quot;active_time&quot;: 0
+      },
+      &quot;minecraft:emitter_shape_point&quot;: {},
+      &quot;minecraft:particle_lifetime_expression&quot;: {
+        &quot;max_lifetime&quot;: 0
+      },
+      &quot;minecraft:particle_appearance_billboard&quot;: {
+        &quot;size&quot;: [
+          0,
+          0
+        ]
+      },
+      &quot;minecraft:particle_lifetime_events&quot;: {
+        &quot;expiration_event&quot;: &quot;xavtau&quot;
+      }
+    }
+  }
+}</code></pre><script type="text/plain" id="raw-obf-pxabgv">{
+  "format_version": "1.10.0",
+  "particle_effect": {
+    "description": {
+      "identifier": "ribbon:pxabgv",
+      "basic_render_parameters": {
+        "material": "particles_alpha",
+        "texture": "textures/ribbon/dgk"
+      }
+    },
+    "events": {
+      "xavtau": {
+        "sequence": [
+          {
+            "expression": "t.mzj=v.kviigs;t.mto=v.ymfcwu;"
+          },
+          {
+            "particle_effect": {
+              "effect": "ribbon:hzxbiw",
+              "type": "emitter",
+              "pre_effect_expression": "v.kviigs=t.mzj;v.kozdua=4;v.ymfcwu=t.mto;"
+            }
+          }
+        ]
+      }
+    },
+    "components": {
+      "minecraft:emitter_initialization": {
+        "creation_expression": "v.kviigs=v.kviigs??1;v.ymfcwu=v.ymfcwu??0;"
+      },
+      "minecraft:emitter_rate_instant": {
+        "num_particles": 1
+      },
+      "minecraft:emitter_lifetime_once": {
+        "active_time": 0
+      },
+      "minecraft:emitter_shape_point": {},
+      "minecraft:particle_lifetime_expression": {
+        "max_lifetime": 0
+      },
+      "minecraft:particle_appearance_billboard": {
+        "size": [
+          0,
+          0
+        ]
+      },
+      "minecraft:particle_lifetime_events": {
+        "expiration_event": "xavtau"
+      }
+    }
+  }
+}</script></div><div class="cw" id="obf-suara" data-g="obf"><div class="ch"><span><span data-l="id">sound_effect di ribbon:mdeyzy (rhp.json) dan ribbon:kjnksh (rhx.json)</span><span data-l="en">sound_effect in ribbon:mdeyzy (rhp.json) and ribbon:kjnksh (rhx.json)</span></span><button class="mini copy" data-raw="raw-obf-suara"><span data-l="id">Salin JSON</span><span data-l="en">Copy JSON</span></button></div><pre><code>{
+  &quot;ribbon:mdeyzy&quot;: {
+    &quot;identifier&quot;: &quot;ribbon:mdeyzy&quot;,
+    &quot;events&quot;: {
+      &quot;iimnuf&quot;: {
+        &quot;sequence&quot;: [
+          {
+            &quot;sound_effect&quot;: {
+              &quot;event_name&quot;: &quot;tripod&quot;
+            }
+          },
+          {
+            &quot;sound_effect&quot;: {
+              &quot;event_name&quot;: &quot;wind_charge.burst&quot;
+            }
+          }
+        ]
+      },
+      &quot;suvmzi&quot;: {
+        &quot;sequence&quot;: [
+          {
+            &quot;particle_effect&quot;: {
+              &quot;effect&quot;: &quot;ribbon:wysuyj&quot;,
+              &quot;type&quot;: &quot;emitter&quot;,
+              &quot;pre_effect_expression&quot;: &quot;v.pjtoss=t.mzj;v.tjvlld=t.upe;v.ymfcwu=t.mto;&quot;
+            }
+          }
+        ]
+      },
+      &quot;yugjxw&quot;: {
+        &quot;sequence&quot;: [
+          {
+            &quot;particle_effect&quot;: {
+              &quot;effect&quot;: &quot;ribbon:metamq&quot;,
+              &quot;type&quot;: &quot;emitter&quot;,
+              &quot;pre_effect_expression&quot;: &quot;v.pjtoss=t.mzj;v.ymfcwu=t.mto;&quot;
+            }
+          }
+        ]
+      },
+      &quot;ttnhml&quot;: {
+        &quot;sequence&quot;: [
+          {
+            &quot;particle_effect&quot;: {
+              &quot;effect&quot;: &quot;ribbon:ysntbz&quot;,
+              &quot;type&quot;: &quot;emitter&quot;,
+              &quot;pre_effect_expression&quot;: &quot;v.pjtoss=t.mzj;v.tjvlld=t.upe;v.ymfcwu=t.mto;&quot;
+            }
+          }
+        ]
+      },
+      &quot;vjojpr&quot;: {
+        &quot;sequence&quot;: [
+          {
+            &quot;particle_effect&quot;: {
+              &quot;effect&quot;: &quot;ribbon:tepqaf&quot;,
+              &quot;type&quot;: &quot;emitter&quot;,
+              &quot;pre_effect_expression&quot;: &quot;v.pjtoss=t.mzj;&quot;
+            }
+          },
+          {
+            &quot;particle_effect&quot;: {
+              &quot;effect&quot;: &quot;ribbon:ytfshb&quot;,
+              &quot;type&quot;: &quot;emitter&quot;,
+              &quot;pre_effect_expression&quot;: &quot;v.pjtoss=t.mzj;&quot;
+            }
+          }
+        ]
+      },
+      &quot;elrzez&quot;: {
+        &quot;sequence&quot;: [
+          {
+            &quot;particle_effect&quot;: {
+              &quot;effect&quot;: &quot;ribbon:hmkxlr&quot;,
+              &quot;type&quot;: &quot;emitter&quot;,
+              &quot;pre_effect_expression&quot;: &quot;v.pjtoss=t.mzj;v.ymfcwu=t.mto;v.sealpe=t.mto!=2;&quot;
+            }
+          }
+        ]
+      },
+      &quot;pgxvvg&quot;: {
+        &quot;sequence&quot;: [
+          {
+            &quot;particle_effect&quot;: {
+              &quot;effect&quot;: &quot;ribbon:kjnksh&quot;,
+              &quot;type&quot;: &quot;emitter&quot;,
+              &quot;pre_effect_expression&quot;: &quot;v.ymfcwu=t.mto;v.sealpe=t.mto!=2;&quot;
+            }
+          }
+        ]
+      }
+    }
+  },
+  &quot;ribbon:kjnksh&quot;: {
+    &quot;identifier&quot;: &quot;ribbon:kjnksh&quot;,
+    &quot;events&quot;: {
+      &quot;iimnuf&quot;: {
+        &quot;sequence&quot;: [
+          {
+            &quot;sound_effect&quot;: {
+              &quot;event_name&quot;: &quot;sonic_boom&quot;
+            }
+          },
+          {
+            &quot;sound_effect&quot;: {
+              &quot;event_name&quot;: &quot;respawn_anchor.deplete&quot;
+            }
+          },
+          {
+            &quot;sound_effect&quot;: {
+              &quot;event_name&quot;: &quot;particle.soul_escape.loud&quot;
+            }
+          }
+        ]
+      },
+      &quot;pgxvvg&quot;: {
+        &quot;sequence&quot;: []
+      }
+    }
+  }
+}</code></pre><script type="text/plain" id="raw-obf-suara">{
+  "ribbon:mdeyzy": {
+    "identifier": "ribbon:mdeyzy",
+    "events": {
+      "iimnuf": {
+        "sequence": [
+          {
+            "sound_effect": {
+              "event_name": "tripod"
+            }
+          },
+          {
+            "sound_effect": {
+              "event_name": "wind_charge.burst"
+            }
+          }
+        ]
+      },
+      "suvmzi": {
+        "sequence": [
+          {
+            "particle_effect": {
+              "effect": "ribbon:wysuyj",
+              "type": "emitter",
+              "pre_effect_expression": "v.pjtoss=t.mzj;v.tjvlld=t.upe;v.ymfcwu=t.mto;"
+            }
+          }
+        ]
+      },
+      "yugjxw": {
+        "sequence": [
+          {
+            "particle_effect": {
+              "effect": "ribbon:metamq",
+              "type": "emitter",
+              "pre_effect_expression": "v.pjtoss=t.mzj;v.ymfcwu=t.mto;"
+            }
+          }
+        ]
+      },
+      "ttnhml": {
+        "sequence": [
+          {
+            "particle_effect": {
+              "effect": "ribbon:ysntbz",
+              "type": "emitter",
+              "pre_effect_expression": "v.pjtoss=t.mzj;v.tjvlld=t.upe;v.ymfcwu=t.mto;"
+            }
+          }
+        ]
+      },
+      "vjojpr": {
+        "sequence": [
+          {
+            "particle_effect": {
+              "effect": "ribbon:tepqaf",
+              "type": "emitter",
+              "pre_effect_expression": "v.pjtoss=t.mzj;"
+            }
+          },
+          {
+            "particle_effect": {
+              "effect": "ribbon:ytfshb",
+              "type": "emitter",
+              "pre_effect_expression": "v.pjtoss=t.mzj;"
+            }
+          }
+        ]
+      },
+      "elrzez": {
+        "sequence": [
+          {
+            "particle_effect": {
+              "effect": "ribbon:hmkxlr",
+              "type": "emitter",
+              "pre_effect_expression": "v.pjtoss=t.mzj;v.ymfcwu=t.mto;v.sealpe=t.mto!=2;"
+            }
+          }
+        ]
+      },
+      "pgxvvg": {
+        "sequence": [
+          {
+            "particle_effect": {
+              "effect": "ribbon:kjnksh",
+              "type": "emitter",
+              "pre_effect_expression": "v.ymfcwu=t.mto;v.sealpe=t.mto!=2;"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "ribbon:kjnksh": {
+    "identifier": "ribbon:kjnksh",
+    "events": {
+      "iimnuf": {
+        "sequence": [
+          {
+            "sound_effect": {
+              "event_name": "sonic_boom"
+            }
+          },
+          {
+            "sound_effect": {
+              "event_name": "respawn_anchor.deplete"
+            }
+          },
+          {
+            "sound_effect": {
+              "event_name": "particle.soul_escape.loud"
+            }
+          }
+        ]
+      },
+      "pgxvvg": {
+        "sequence": []
+      }
+    }
+  }
+}</script></div></div></div>
+<div class="tp" data-tab="ren"><div class="panel"><p><span data-l="id">Isi dan logikanya sama persis dengan versi obfuscated; hanya nama variabel, identifier, tekstur, dan event yang diganti. Arti tiap nama ada di tab Tabel Rename (sebagian masih dugaan).</span><span data-l="en">The content and logic are identical to the obfuscated version; only variable names, identifiers, textures, and events were renamed. The meaning of each name is in the Rename Table tab (some are still guesses).</span></p><div class="chips"><button class="chip on" data-g="ren" data-show="ren-endckw">soul_emitter</button><button class="chip" data-g="ren" data-show="ren-wrbaad">soul_segment</button><button class="chip" data-g="ren" data-show="ren-pxabgv">death_dispatcher</button><button class="chip" data-g="ren" data-show="ren-suara"><span data-l="id">suara</span><span data-l="en">sound</span></button></div><div class="cw on" id="ren-endckw" data-g="ren"><div class="ch"><span>ribbon:soul_emitter (rhz.json) <span data-l="id">induk</span><span data-l="en">parent</span></span><button class="mini copy" data-raw="raw-ren-endckw"><span data-l="id">Salin JSON</span><span data-l="en">Copy JSON</span></button></div><pre><code>{
+  &quot;format_version&quot;: &quot;1.10.0&quot;,
+  &quot;particle_effect&quot;: {
+    &quot;description&quot;: {
+      &quot;identifier&quot;: &quot;ribbon:soul_emitter&quot;
+    },
+    &quot;events&quot;: {
+      &quot;on_tick&quot;: {
+        &quot;sequence&quot;: [
+          {
+            &quot;expression&quot;: &quot;
+                t.spawn=0;
+                t.seg_start=0;
+                t.seg_duration=0;
+                t.age_offset=0;
+                t.seg_width=0;
+                t.tick=Math.floor(v.emitter_age*v.tick_rate+0.05);
+                (t.tick&gt;=(v.next_tick??0))&amp;&amp;v.emitter_age&lt;v.emit_until*v.life?{t.seg_tick=v.next_tick??0;
+                t.seg_start=t.seg_tick/v.tick_rate;
+                t.seg_span=v.span_mul*v.span_unit*(0.52+0.48*t.seg_start/v.life);
+                t.seg_ticks=Math.max(1,Math.round(v.seg_factor*t.seg_span/v.span_div*v.tick_rate));
+                v.next_tick=t.seg_tick+t.seg_ticks;
+                t.seg_duration=t.seg_ticks/v.tick_rate;
+                t.age_offset=v.emitter_age-t.seg_start;
+                t.seg_width=0.5*t.seg_span;
+                t.spawn=1;
+                };
+                t.slack=v.slack_mul*v.frame_dt;
+                t.c_life=v.life;
+                t.c_heading=v.heading;
+                t.c_pitch=v.pitch;
+                t.c_pitch_var=v.pitch_var;
+                t.c_speed=v.speed;
+                t.c_speed_var=v.speed_var;
+                t.c_heading_offset=v.heading_offset;
+                t.c_heading_spread=v.heading_spread;
+                t.c_drag=v.drag;
+                t.c_drive_h=v.drive_h;
+                t.c_rise_vel=v.rise_vel;
+                t.c_rise_acc=v.rise_acc;
+                t.c_floor_y=v.floor_y;
+                t.c_turn_rate=v.turn_rate;
+                t.c_turn_var=v.turn_var;
+                t.c_wobble_amp=v.wobble_amp;
+                t.c_wobble_freq=v.wobble_freq;
+                t.c_time_scale_var=v.time_scale_var;
+                t.c_jitter=v.jitter;
+                t.c_rand_1=v.rand_1;
+                t.c_rand_2=v.rand_2;
+                t.c_rand_3=v.rand_3;
+                t.c_rand_4=v.rand_4;
+                t.c_span_unit=v.span_unit;
+                t.c_span_div=v.span_div;
+                t.c_alpha=v.alpha;
+                t.c_fade=v.fade;
+                t.c_tail_mul=v.tail_mul;
+                t.c_span_mul=v.span_mul;
+                t.c_tangent_shift=v.tangent_shift;
+            &quot;
+          },
+          {
+            &quot;particle_effect&quot;: {
+              &quot;effect&quot;: &quot;ribbon:soul_segment&quot;,
+              &quot;type&quot;: &quot;emitter&quot;,
+              &quot;pre_effect_expression&quot;: &quot;
+                  v.spawn_flag=t.spawn;
+                  v.seg_start=t.seg_start;
+                  v.seg_duration=t.seg_duration;
+                  v.age_offset=t.age_offset;
+                  v.slack=t.slack;
+                  v.width=t.seg_width;
+                  v.life=t.c_life;
+                  v.heading=t.c_heading;
+                  v.pitch=t.c_pitch;
+                  v.pitch_var=t.c_pitch_var;
+                  v.speed=t.c_speed;
+                  v.speed_var=t.c_speed_var;
+                  v.heading_offset=t.c_heading_offset;
+                  v.heading_spread=t.c_heading_spread;
+                  v.drag=t.c_drag;
+                  v.drive_h=t.c_drive_h;
+                  v.rise_vel=t.c_rise_vel;
+                  v.rise_acc=t.c_rise_acc;
+                  v.floor_y=t.c_floor_y;
+                  v.turn_rate=t.c_turn_rate;
+                  v.turn_var=t.c_turn_var;
+                  v.wobble_amp=t.c_wobble_amp;
+                  v.wobble_freq=t.c_wobble_freq;
+                  v.time_scale_var=t.c_time_scale_var;
+                  v.jitter=t.c_jitter;
+                  v.rand_1=t.c_rand_1;
+                  v.rand_2=t.c_rand_2;
+                  v.rand_3=t.c_rand_3;
+                  v.rand_4=t.c_rand_4;
+                  v.span_unit=t.c_span_unit;
+                  v.span_div=t.c_span_div;
+                  v.alpha=t.c_alpha;
+                  v.fade=t.c_fade;
+                  v.tail_mul=t.c_tail_mul;
+                  v.span_mul=t.c_span_mul;
+                  v.tangent_shift=t.c_tangent_shift;
+              &quot;
+            }
+          }
+        ]
+      }
+    },
+    &quot;components&quot;: {
+      &quot;minecraft:emitter_initialization&quot;: {
+        &quot;creation_expression&quot;: &quot;
+            v.heading=v.heading??0;
+            v.life=Math.random(2.5,4);
+            v.rand_1=v.emitter_random_1;
+            v.rand_2=v.emitter_random_2;
+            v.rand_3=v.emitter_random_3;
+            v.rand_4=v.emitter_random_4;
+            v.pitch=25;
+            v.pitch_var=12;
+            v.speed=10;
+            v.speed_var=0.15;
+            v.heading_spread=50;
+            v.drag=3;
+            v.drive_h=3;
+            v.rise_vel=1;
+            v.rise_acc=1.5;
+            v.turn_rate=35;
+            v.turn_var=0.4;
+            v.jitter=0.3;
+            v.floor_y=-100;
+            v.heading_offset=0;
+            v.wobble_amp=0;
+            v.wobble_freq=0;
+            v.time_scale_var=0;
+            v.span_div=6;
+            v.span_unit=0.104;
+            v.head_count=0;
+            v.alpha=0.7;
+            v.fade=0.3;
+            v.tail_mul=12;
+            v.tick_rate=30;
+            v.seg_factor=2;
+            v.emit_until=1;
+            v.tangent_shift=0;
+            v.span_mul=5;
+            v.slack_mul=1;
+        &quot;,
+        &quot;per_update_expression&quot;: &quot;v.frame_dt=Math.clamp(v.emitter_age-(v.prev_age??0),0,0.1);v.prev_age=v.emitter_age;&quot;
+      },
+      &quot;minecraft:emitter_rate_instant&quot;: {
+        &quot;num_particles&quot;: &quot;v.head_count&quot;
+      },
+      &quot;minecraft:emitter_lifetime_expression&quot;: {
+        &quot;activation_expression&quot;: 1,
+        &quot;expiration_expression&quot;: &quot;v.emitter_age&gt;=v.life&quot;
+      },
+      &quot;minecraft:emitter_lifetime_events&quot;: {
+        &quot;timeline&quot;: {
+          &quot;0.0000&quot;: &quot;on_tick&quot;,
+          &quot;0.0333&quot;: &quot;on_tick&quot;,
+          &quot;0.0667&quot;: &quot;on_tick&quot;,
+          &quot;3.9667&quot;: &quot;on_tick&quot;,
+          &quot;4.0000&quot;: &quot;on_tick&quot;
+        }
+      }
+    }
+  }
+}</code></pre><script type="text/plain" id="raw-ren-endckw">{
+  "format_version": "1.10.0",
+  "particle_effect": {
+    "description": {
+      "identifier": "ribbon:soul_emitter"
+    },
+    "events": {
+      "on_tick": {
+        "sequence": [
+          {
+            "expression": "t.spawn=0;t.seg_start=0;t.seg_duration=0;t.age_offset=0;t.seg_width=0;t.tick=Math.floor(v.emitter_age*v.tick_rate+0.05);(t.tick>=(v.next_tick??0))&&v.emitter_age<v.emit_until*v.life?{t.seg_tick=v.next_tick??0;t.seg_start=t.seg_tick/v.tick_rate;t.seg_span=v.span_mul*v.span_unit*(0.52+0.48*t.seg_start/v.life);t.seg_ticks=Math.max(1,Math.round(v.seg_factor*t.seg_span/v.span_div*v.tick_rate));v.next_tick=t.seg_tick+t.seg_ticks;t.seg_duration=t.seg_ticks/v.tick_rate;t.age_offset=v.emitter_age-t.seg_start;t.seg_width=0.5*t.seg_span;t.spawn=1;};t.slack=v.slack_mul*v.frame_dt;t.c_life=v.life;t.c_heading=v.heading;t.c_pitch=v.pitch;t.c_pitch_var=v.pitch_var;t.c_speed=v.speed;t.c_speed_var=v.speed_var;t.c_heading_offset=v.heading_offset;t.c_heading_spread=v.heading_spread;t.c_drag=v.drag;t.c_drive_h=v.drive_h;t.c_rise_vel=v.rise_vel;t.c_rise_acc=v.rise_acc;t.c_floor_y=v.floor_y;t.c_turn_rate=v.turn_rate;t.c_turn_var=v.turn_var;t.c_wobble_amp=v.wobble_amp;t.c_wobble_freq=v.wobble_freq;t.c_time_scale_var=v.time_scale_var;t.c_jitter=v.jitter;t.c_rand_1=v.rand_1;t.c_rand_2=v.rand_2;t.c_rand_3=v.rand_3;t.c_rand_4=v.rand_4;t.c_span_unit=v.span_unit;t.c_span_div=v.span_div;t.c_alpha=v.alpha;t.c_fade=v.fade;t.c_tail_mul=v.tail_mul;t.c_span_mul=v.span_mul;t.c_tangent_shift=v.tangent_shift;"
+          },
+          {
+            "particle_effect": {
+              "effect": "ribbon:soul_segment",
+              "type": "emitter",
+              "pre_effect_expression": "v.spawn_flag=t.spawn;v.seg_start=t.seg_start;v.seg_duration=t.seg_duration;v.age_offset=t.age_offset;v.slack=t.slack;v.width=t.seg_width;v.life=t.c_life;v.heading=t.c_heading;v.pitch=t.c_pitch;v.pitch_var=t.c_pitch_var;v.speed=t.c_speed;v.speed_var=t.c_speed_var;v.heading_offset=t.c_heading_offset;v.heading_spread=t.c_heading_spread;v.drag=t.c_drag;v.drive_h=t.c_drive_h;v.rise_vel=t.c_rise_vel;v.rise_acc=t.c_rise_acc;v.floor_y=t.c_floor_y;v.turn_rate=t.c_turn_rate;v.turn_var=t.c_turn_var;v.wobble_amp=t.c_wobble_amp;v.wobble_freq=t.c_wobble_freq;v.time_scale_var=t.c_time_scale_var;v.jitter=t.c_jitter;v.rand_1=t.c_rand_1;v.rand_2=t.c_rand_2;v.rand_3=t.c_rand_3;v.rand_4=t.c_rand_4;v.span_unit=t.c_span_unit;v.span_div=t.c_span_div;v.alpha=t.c_alpha;v.fade=t.c_fade;v.tail_mul=t.c_tail_mul;v.span_mul=t.c_span_mul;v.tangent_shift=t.c_tangent_shift;"
+            }
+          }
+        ]
+      }
+    },
+    "components": {
+      "minecraft:emitter_initialization": {
+        "creation_expression": "v.heading=v.heading??0;v.life=Math.random(2.5,4);v.rand_1=v.emitter_random_1;v.rand_2=v.emitter_random_2;v.rand_3=v.emitter_random_3;v.rand_4=v.emitter_random_4;v.pitch=25;v.pitch_var=12;v.speed=10;v.speed_var=0.15;v.heading_spread=50;v.drag=3;v.drive_h=3;v.rise_vel=1;v.rise_acc=1.5;v.turn_rate=35;v.turn_var=0.4;v.jitter=0.3;v.floor_y=-100;v.heading_offset=0;v.wobble_amp=0;v.wobble_freq=0;v.time_scale_var=0;v.span_div=6;v.span_unit=0.104;v.head_count=0;v.alpha=0.7;v.fade=0.3;v.tail_mul=12;v.tick_rate=30;v.seg_factor=2;v.emit_until=1;v.tangent_shift=0;v.span_mul=5;v.slack_mul=1;",
+        "per_update_expression": "v.frame_dt=Math.clamp(v.emitter_age-(v.prev_age??0),0,0.1);v.prev_age=v.emitter_age;"
+      },
+      "minecraft:emitter_rate_instant": {
+        "num_particles": "v.head_count"
+      },
+      "minecraft:emitter_lifetime_expression": {
+        "activation_expression": 1,
+        "expiration_expression": "v.emitter_age>=v.life"
+      },
+      "minecraft:emitter_lifetime_events": {
+        "timeline": {
+          "0.0000": "on_tick",
+          "0.0333": "on_tick",
+          "0.0667": "on_tick",
+          "3.9667": "on_tick",
+          "4.0000": "on_tick"
+        }
+      }
+    }
+  }
+}</script></div><div class="cw" id="ren-wrbaad" data-g="ren"><div class="ch"><span>ribbon:soul_segment (rjo.json) <span data-l="id">anak = segmen</span><span data-l="en">child = segment</span></span><button class="mini copy" data-raw="raw-ren-wrbaad"><span data-l="id">Salin JSON</span><span data-l="en">Copy JSON</span></button></div><pre><code>{
+  &quot;format_version&quot;: &quot;1.10.0&quot;,
+  &quot;particle_effect&quot;: {
+    &quot;description&quot;: {
+      &quot;identifier&quot;: &quot;ribbon:soul_segment&quot;,
+      &quot;basic_render_parameters&quot;: {
+        &quot;material&quot;: &quot;particles_blend&quot;,
+        &quot;texture&quot;: &quot;textures/ribbon/warden_soul&quot;
+      }
+    },
+    &quot;components&quot;: {
+      &quot;minecraft:emitter_rate_instant&quot;: {
+        &quot;num_particles&quot;: 1
+      },
+      &quot;minecraft:emitter_lifetime_expression&quot;: {
+        &quot;activation_expression&quot;: &quot;v.spawn_flag??0&quot;,
+        &quot;expiration_expression&quot;: &quot;(v.emitter_done??0)||!(v.spawn_flag??1)&quot;
+      },
+      &quot;minecraft:particle_lifetime_expression&quot;: {
+        &quot;max_lifetime&quot;: 10,
+        &quot;expiration_expression&quot;: &quot;(v.head_done??0)&amp;&amp;(v.tail_time??0)&gt;=(v.head_time??1)&quot;
+      },
+      &quot;minecraft:particle_initialization&quot;: {
+        &quot;per_update_expression&quot;: &quot;
+            t.r1=v.rand_1;
+            t.r2=v.rand_2;
+            t.r3=v.rand_3;
+            t.r4=v.rand_4;
+            t.turn_sign=t.r2&lt;0.5?-1:1;
+            t.time_scale=1+(2*Math.mod(t.r4*7907,1)-1)*v.time_scale_var;
+            t.turn_deg=t.turn_sign*Math.max(v.turn_rate*(1+(2*t.r3-1)*v.turn_var),0.01);
+            t.turn_rad=t.turn_deg*Math.pi/180;
+            t.yaw=v.heading+v.heading_offset+(t.r1-0.5)*v.heading_spread;
+            t.cos_yaw=Math.cos(t.yaw);
+            t.sin_yaw=Math.sin(t.yaw);
+            t.pitch_a=v.pitch+(2*t.r4-1)*v.pitch_var;
+            t.speed_a=v.speed*(1+(2*Math.mod(t.r1*7919,1)-1)*v.speed_var);
+            t.u0=t.speed_a*Math.cos(t.pitch_a)-v.drive_h;
+            t.w0=t.speed_a*Math.sin(t.pitch_a)-v.rise_vel;
+            t.k2=v.drag*v.drag+t.turn_rad*t.turn_rad;
+            t.off_x=(Math.mod(t.r2*6271,1)-0.5)*v.jitter;
+            t.off_y=(Math.mod(t.r3*4513,1)-0.5)*0.5*v.jitter;
+            t.wob_freq=v.wobble_freq*(0.75+0.5*Math.mod(t.r1*2713,1));
+            t.wob_phase=360*Math.mod(t.r3*3571,1);
+            t.head_t=v.seg_start+v.particle_age+v.age_offset+v.slack;
+            t.end_t=v.seg_start+v.seg_duration;
+            t.tail_len=v.tail_mul*v.span_mul*v.span_unit*(0.52+0.48*t.head_t/v.life)/v.span_div;
+            !(v.head_done??0)?{t.clamped_t=t.head_t&lt;t.end_t+v.slack?t.head_t:t.end_t;
+            v.head_done=t.clamped_t==t.end_t;
+            v.head_time=t.clamped_t;
+            t.t_plus=t.clamped_t+0.01;
+            t.tau=t.t_plus*t.time_scale;
+            t.decay=Math.exp(-v.drag*t.tau);
+            t.cos_turn=Math.cos(t.turn_deg*t.tau);
+            t.sin_turn=Math.sin(t.turn_deg*t.tau);
+            t.local_x=t.off_x+v.wobble_amp*(1-Math.exp(-2*t.tau))*Math.sin(360*t.wob_freq*t.tau+t.wob_phase)+v.drive_h*(1-t.cos_turn)/t.turn_rad+t.u0*(t.turn_rad*(1-t.decay*t.cos_turn)-v.drag*t.decay*t.sin_turn)/t.k2;
+            t.local_z=v.drive_h*t.sin_turn/t.turn_rad+t.u0*(v.drag*(1-t.decay*t.cos_turn)+t.turn_rad*t.decay*t.sin_turn)/t.k2;
+            t.world_x=t.local_x*t.cos_yaw-t.local_z*t.sin_yaw;
+            t.soft_arg=(t.off_y+v.rise_vel*t.tau+t.w0*(1-t.decay)/v.drag+0.5*v.rise_acc*t.tau*t.tau-v.floor_y)/0.3;
+            t.world_y=v.floor_y+0.3*(Math.max(t.soft_arg,0)+Math.ln(1+Math.exp(-Math.abs(t.soft_arg))));
+            t.world_z=t.local_x*t.sin_yaw+t.local_z*t.cos_yaw;
+            t.dx=t.world_x;
+            t.dy=t.world_y;
+            t.dz=t.world_z;
+            t.t_plus=t.clamped_t-0.01;
+            t.tau=t.t_plus*t.time_scale;
+            t.decay=Math.exp(-v.drag*t.tau);
+            t.cos_turn=Math.cos(t.turn_deg*t.tau);
+            t.sin_turn=Math.sin(t.turn_deg*t.tau);
+            t.local_x=t.off_x+v.wobble_amp*(1-Math.exp(-2*t.tau))*Math.sin(360*t.wob_freq*t.tau+t.wob_phase)+v.drive_h*(1-t.cos_turn)/t.turn_rad+t.u0*(t.turn_rad*(1-t.decay*t.cos_turn)-v.drag*t.decay*t.sin_turn)/t.k2;
+            t.local_z=v.drive_h*t.sin_turn/t.turn_rad+t.u0*(v.drag*(1-t.decay*t.cos_turn)+t.turn_rad*t.decay*t.sin_turn)/t.k2;
+            t.world_x=t.local_x*t.cos_yaw-t.local_z*t.sin_yaw;
+            t.soft_arg=(t.off_y+v.rise_vel*t.tau+t.w0*(1-t.decay)/v.drag+0.5*v.rise_acc*t.tau*t.tau-v.floor_y)/0.3;
+            t.world_y=v.floor_y+0.3*(Math.max(t.soft_arg,0)+Math.ln(1+Math.exp(-Math.abs(t.soft_arg))));
+            t.world_z=t.local_x*t.sin_yaw+t.local_z*t.cos_yaw;
+            t.dx=t.dx-t.world_x;
+            t.dy=t.dy-t.world_y;
+            t.dz=t.dz-t.world_z;
+            t.t_plus=t.clamped_t;
+            t.tau=t.t_plus*t.time_scale;
+            t.decay=Math.exp(-v.drag*t.tau);
+            t.cos_turn=Math.cos(t.turn_deg*t.tau);
+            t.sin_turn=Math.sin(t.turn_deg*t.tau);
+            t.local_x=t.off_x+v.wobble_amp*(1-Math.exp(-2*t.tau))*Math.sin(360*t.wob_freq*t.tau+t.wob_phase)+v.drive_h*(1-t.cos_turn)/t.turn_rad+t.u0*(t.turn_rad*(1-t.decay*t.cos_turn)-v.drag*t.decay*t.sin_turn)/t.k2;
+            t.local_z=v.drive_h*t.sin_turn/t.turn_rad+t.u0*(v.drag*(1-t.decay*t.cos_turn)+t.turn_rad*t.decay*t.sin_turn)/t.k2;
+            t.world_x=t.local_x*t.cos_yaw-t.local_z*t.sin_yaw;
+            t.soft_arg=(t.off_y+v.rise_vel*t.tau+t.w0*(1-t.decay)/v.drag+0.5*v.rise_acc*t.tau*t.tau-v.floor_y)/0.3;
+            t.world_y=v.floor_y+0.3*(Math.max(t.soft_arg,0)+Math.ln(1+Math.exp(-Math.abs(t.soft_arg))));
+            t.world_z=t.local_x*t.sin_yaw+t.local_z*t.cos_yaw;
+            t.shift=v.tangent_shift*v.span_unit*(0.52+0.48*t.clamped_t/v.life)/Math.sqrt(t.dx*t.dx+t.dy*t.dy+t.dz*t.dz);
+            t.world_x=t.world_x-t.dx*t.shift;
+            t.world_y=t.world_y-t.dy*t.shift;
+            t.world_z=t.world_z-t.dz*t.shift;
+            v.head_x=t.world_x;
+            v.head_y=t.world_y;
+            v.head_z=t.world_z;
+            };
+            t.clamped_t=Math.max(v.seg_start,t.head_t-t.tail_len);
+            (t.clamped_t&gt;v.seg_start||!(v.tail_ready??0))?{v.tail_ready=1;
+            v.tail_time=t.clamped_t;
+            t.t_plus=t.clamped_t+0.01;
+            t.tau=t.t_plus*t.time_scale;
+            t.decay=Math.exp(-v.drag*t.tau);
+            t.cos_turn=Math.cos(t.turn_deg*t.tau);
+            t.sin_turn=Math.sin(t.turn_deg*t.tau);
+            t.local_x=t.off_x+v.wobble_amp*(1-Math.exp(-2*t.tau))*Math.sin(360*t.wob_freq*t.tau+t.wob_phase)+v.drive_h*(1-t.cos_turn)/t.turn_rad+t.u0*(t.turn_rad*(1-t.decay*t.cos_turn)-v.drag*t.decay*t.sin_turn)/t.k2;
+            t.local_z=v.drive_h*t.sin_turn/t.turn_rad+t.u0*(v.drag*(1-t.decay*t.cos_turn)+t.turn_rad*t.decay*t.sin_turn)/t.k2;
+            t.world_x=t.local_x*t.cos_yaw-t.local_z*t.sin_yaw;
+            t.soft_arg=(t.off_y+v.rise_vel*t.tau+t.w0*(1-t.decay)/v.drag+0.5*v.rise_acc*t.tau*t.tau-v.floor_y)/0.3;
+            t.world_y=v.floor_y+0.3*(Math.max(t.soft_arg,0)+Math.ln(1+Math.exp(-Math.abs(t.soft_arg))));
+            t.world_z=t.local_x*t.sin_yaw+t.local_z*t.cos_yaw;
+            t.dx=t.world_x;
+            t.dy=t.world_y;
+            t.dz=t.world_z;
+            t.t_plus=t.clamped_t-0.01;
+            t.tau=t.t_plus*t.time_scale;
+            t.decay=Math.exp(-v.drag*t.tau);
+            t.cos_turn=Math.cos(t.turn_deg*t.tau);
+            t.sin_turn=Math.sin(t.turn_deg*t.tau);
+            t.local_x=t.off_x+v.wobble_amp*(1-Math.exp(-2*t.tau))*Math.sin(360*t.wob_freq*t.tau+t.wob_phase)+v.drive_h*(1-t.cos_turn)/t.turn_rad+t.u0*(t.turn_rad*(1-t.decay*t.cos_turn)-v.drag*t.decay*t.sin_turn)/t.k2;
+            t.local_z=v.drive_h*t.sin_turn/t.turn_rad+t.u0*(v.drag*(1-t.decay*t.cos_turn)+t.turn_rad*t.decay*t.sin_turn)/t.k2;
+            t.world_x=t.local_x*t.cos_yaw-t.local_z*t.sin_yaw;
+            t.soft_arg=(t.off_y+v.rise_vel*t.tau+t.w0*(1-t.decay)/v.drag+0.5*v.rise_acc*t.tau*t.tau-v.floor_y)/0.3;
+            t.world_y=v.floor_y+0.3*(Math.max(t.soft_arg,0)+Math.ln(1+Math.exp(-Math.abs(t.soft_arg))));
+            t.world_z=t.local_x*t.sin_yaw+t.local_z*t.cos_yaw;
+            t.dx=t.dx-t.world_x;
+            t.dy=t.dy-t.world_y;
+            t.dz=t.dz-t.world_z;
+            t.t_plus=t.clamped_t;
+            t.tau=t.t_plus*t.time_scale;
+            t.decay=Math.exp(-v.drag*t.tau);
+            t.cos_turn=Math.cos(t.turn_deg*t.tau);
+            t.sin_turn=Math.sin(t.turn_deg*t.tau);
+            t.local_x=t.off_x+v.wobble_amp*(1-Math.exp(-2*t.tau))*Math.sin(360*t.wob_freq*t.tau+t.wob_phase)+v.drive_h*(1-t.cos_turn)/t.turn_rad+t.u0*(t.turn_rad*(1-t.decay*t.cos_turn)-v.drag*t.decay*t.sin_turn)/t.k2;
+            t.local_z=v.drive_h*t.sin_turn/t.turn_rad+t.u0*(v.drag*(1-t.decay*t.cos_turn)+t.turn_rad*t.decay*t.sin_turn)/t.k2;
+            t.world_x=t.local_x*t.cos_yaw-t.local_z*t.sin_yaw;
+            t.soft_arg=(t.off_y+v.rise_vel*t.tau+t.w0*(1-t.decay)/v.drag+0.5*v.rise_acc*t.tau*t.tau-v.floor_y)/0.3;
+            t.world_y=v.floor_y+0.3*(Math.max(t.soft_arg,0)+Math.ln(1+Math.exp(-Math.abs(t.soft_arg))));
+            t.world_z=t.local_x*t.sin_yaw+t.local_z*t.cos_yaw;
+            t.shift=v.tangent_shift*v.span_unit*(0.52+0.48*t.clamped_t/v.life)/Math.sqrt(t.dx*t.dx+t.dy*t.dy+t.dz*t.dz);
+            t.world_x=t.world_x-t.dx*t.shift;
+            t.world_y=t.world_y-t.dy*t.shift;
+            t.world_z=t.world_z-t.dz*t.shift;
+            v.tail_x=t.world_x;
+            v.tail_y=t.world_y;
+            v.tail_z=t.world_z;
+            };
+            v.chord_x=v.head_x-v.tail_x;
+            v.chord_y=v.head_y-v.tail_y;
+            v.chord_z=v.head_z-v.tail_z;
+            t.chord_len=Math.max(Math.sqrt(v.chord_x*v.chord_x+v.chord_y*v.chord_y+v.chord_z*v.chord_z),1.0E-4);
+            v.half_len=0.5*t.chord_len;
+            v.dir_x=v.chord_x/t.chord_len;
+            v.dir_y=v.chord_y/t.chord_len;
+            v.dir_z=v.chord_z/t.chord_len;
+            v.uv_top=(t.head_t-v.head_time)/t.tail_len;
+            v.uv_size=(v.head_time-v.tail_time)/t.tail_len;
+            v.fade_alpha=Math.hermite_blend(Math.clamp((1-t.head_t/v.life)/v.fade,0,1));
+        &quot;
+      },
+      &quot;minecraft:particle_motion_parametric&quot;: {
+        &quot;relative_position&quot;: [
+          &quot;(v.tail_x??0)+(v.chord_x??0)/2&quot;,
+          &quot;(v.tail_y??0)+(v.chord_y??0)/2&quot;,
+          &quot;(v.tail_z??0)+(v.chord_z??0)/2&quot;
+        ]
+      },
+      &quot;minecraft:particle_lifetime_events&quot;: {
+        &quot;creation_event&quot;: &quot;mark_emitter_done&quot;
+      },
+      &quot;minecraft:particle_initial_spin&quot;: {
+        &quot;rotation&quot;: -90
+      },
+      &quot;minecraft:particle_appearance_billboard&quot;: {
+        &quot;size&quot;: [
+          &quot;v.width&quot;,
+          &quot;v.half_len??0&quot;
+        ],
+        &quot;facing_camera_mode&quot;: &quot;lookat_direction&quot;,
+        &quot;direction&quot;: {
+          &quot;mode&quot;: &quot;custom&quot;,
+          &quot;custom_direction&quot;: [
+            &quot;v.dir_x??0&quot;,
+            &quot;v.dir_y??1&quot;,
+            &quot;v.dir_z??0&quot;
+          ]
+        },
+        &quot;uv&quot;: {
+          &quot;texture_width&quot;: 1,
+          &quot;texture_height&quot;: 1,
+          &quot;uv&quot;: [
+            0,
+            &quot;v.uv_top??1&quot;
+          ],
+          &quot;uv_size&quot;: [
+            1,
+            &quot;v.uv_size??0&quot;
+          ]
+        }
+      },
+      &quot;minecraft:particle_appearance_tinting&quot;: {
+        &quot;color&quot;: [
+          1,
+          1,
+          1,
+          &quot;v.alpha*(v.fade_alpha??1)&quot;
+        ]
+      }
+    },
+    &quot;events&quot;: {
+      &quot;mark_emitter_done&quot;: {
+        &quot;expression&quot;: &quot;v.emitter_done=1;&quot;
+      }
+    }
+  }
+}</code></pre><script type="text/plain" id="raw-ren-wrbaad">{
+  "format_version": "1.10.0",
+  "particle_effect": {
+    "description": {
+      "identifier": "ribbon:soul_segment",
+      "basic_render_parameters": {
+        "material": "particles_blend",
+        "texture": "textures/ribbon/warden_soul"
+      }
+    },
+    "components": {
+      "minecraft:emitter_rate_instant": {
+        "num_particles": 1
+      },
+      "minecraft:emitter_lifetime_expression": {
+        "activation_expression": "v.spawn_flag??0",
+        "expiration_expression": "(v.emitter_done??0)||!(v.spawn_flag??1)"
+      },
+      "minecraft:particle_lifetime_expression": {
+        "max_lifetime": 10,
+        "expiration_expression": "(v.head_done??0)&&(v.tail_time??0)>=(v.head_time??1)"
+      },
+      "minecraft:particle_initialization": {
+        "per_update_expression": "t.r1=v.rand_1;t.r2=v.rand_2;t.r3=v.rand_3;t.r4=v.rand_4;t.turn_sign=t.r2<0.5?-1:1;t.time_scale=1+(2*Math.mod(t.r4*7907,1)-1)*v.time_scale_var;t.turn_deg=t.turn_sign*Math.max(v.turn_rate*(1+(2*t.r3-1)*v.turn_var),0.01);t.turn_rad=t.turn_deg*Math.pi/180;t.yaw=v.heading+v.heading_offset+(t.r1-0.5)*v.heading_spread;t.cos_yaw=Math.cos(t.yaw);t.sin_yaw=Math.sin(t.yaw);t.pitch_a=v.pitch+(2*t.r4-1)*v.pitch_var;t.speed_a=v.speed*(1+(2*Math.mod(t.r1*7919,1)-1)*v.speed_var);t.u0=t.speed_a*Math.cos(t.pitch_a)-v.drive_h;t.w0=t.speed_a*Math.sin(t.pitch_a)-v.rise_vel;t.k2=v.drag*v.drag+t.turn_rad*t.turn_rad;t.off_x=(Math.mod(t.r2*6271,1)-0.5)*v.jitter;t.off_y=(Math.mod(t.r3*4513,1)-0.5)*0.5*v.jitter;t.wob_freq=v.wobble_freq*(0.75+0.5*Math.mod(t.r1*2713,1));t.wob_phase=360*Math.mod(t.r3*3571,1);t.head_t=v.seg_start+v.particle_age+v.age_offset+v.slack;t.end_t=v.seg_start+v.seg_duration;t.tail_len=v.tail_mul*v.span_mul*v.span_unit*(0.52+0.48*t.head_t/v.life)/v.span_div;!(v.head_done??0)?{t.clamped_t=t.head_t<t.end_t+v.slack?t.head_t:t.end_t;v.head_done=t.clamped_t==t.end_t;v.head_time=t.clamped_t;t.t_plus=t.clamped_t+0.01;t.tau=t.t_plus*t.time_scale;t.decay=Math.exp(-v.drag*t.tau);t.cos_turn=Math.cos(t.turn_deg*t.tau);t.sin_turn=Math.sin(t.turn_deg*t.tau);t.local_x=t.off_x+v.wobble_amp*(1-Math.exp(-2*t.tau))*Math.sin(360*t.wob_freq*t.tau+t.wob_phase)+v.drive_h*(1-t.cos_turn)/t.turn_rad+t.u0*(t.turn_rad*(1-t.decay*t.cos_turn)-v.drag*t.decay*t.sin_turn)/t.k2;t.local_z=v.drive_h*t.sin_turn/t.turn_rad+t.u0*(v.drag*(1-t.decay*t.cos_turn)+t.turn_rad*t.decay*t.sin_turn)/t.k2;t.world_x=t.local_x*t.cos_yaw-t.local_z*t.sin_yaw;t.soft_arg=(t.off_y+v.rise_vel*t.tau+t.w0*(1-t.decay)/v.drag+0.5*v.rise_acc*t.tau*t.tau-v.floor_y)/0.3;t.world_y=v.floor_y+0.3*(Math.max(t.soft_arg,0)+Math.ln(1+Math.exp(-Math.abs(t.soft_arg))));t.world_z=t.local_x*t.sin_yaw+t.local_z*t.cos_yaw;t.dx=t.world_x;t.dy=t.world_y;t.dz=t.world_z;t.t_plus=t.clamped_t-0.01;t.tau=t.t_plus*t.time_scale;t.decay=Math.exp(-v.drag*t.tau);t.cos_turn=Math.cos(t.turn_deg*t.tau);t.sin_turn=Math.sin(t.turn_deg*t.tau);t.local_x=t.off_x+v.wobble_amp*(1-Math.exp(-2*t.tau))*Math.sin(360*t.wob_freq*t.tau+t.wob_phase)+v.drive_h*(1-t.cos_turn)/t.turn_rad+t.u0*(t.turn_rad*(1-t.decay*t.cos_turn)-v.drag*t.decay*t.sin_turn)/t.k2;t.local_z=v.drive_h*t.sin_turn/t.turn_rad+t.u0*(v.drag*(1-t.decay*t.cos_turn)+t.turn_rad*t.decay*t.sin_turn)/t.k2;t.world_x=t.local_x*t.cos_yaw-t.local_z*t.sin_yaw;t.soft_arg=(t.off_y+v.rise_vel*t.tau+t.w0*(1-t.decay)/v.drag+0.5*v.rise_acc*t.tau*t.tau-v.floor_y)/0.3;t.world_y=v.floor_y+0.3*(Math.max(t.soft_arg,0)+Math.ln(1+Math.exp(-Math.abs(t.soft_arg))));t.world_z=t.local_x*t.sin_yaw+t.local_z*t.cos_yaw;t.dx=t.dx-t.world_x;t.dy=t.dy-t.world_y;t.dz=t.dz-t.world_z;t.t_plus=t.clamped_t;t.tau=t.t_plus*t.time_scale;t.decay=Math.exp(-v.drag*t.tau);t.cos_turn=Math.cos(t.turn_deg*t.tau);t.sin_turn=Math.sin(t.turn_deg*t.tau);t.local_x=t.off_x+v.wobble_amp*(1-Math.exp(-2*t.tau))*Math.sin(360*t.wob_freq*t.tau+t.wob_phase)+v.drive_h*(1-t.cos_turn)/t.turn_rad+t.u0*(t.turn_rad*(1-t.decay*t.cos_turn)-v.drag*t.decay*t.sin_turn)/t.k2;t.local_z=v.drive_h*t.sin_turn/t.turn_rad+t.u0*(v.drag*(1-t.decay*t.cos_turn)+t.turn_rad*t.decay*t.sin_turn)/t.k2;t.world_x=t.local_x*t.cos_yaw-t.local_z*t.sin_yaw;t.soft_arg=(t.off_y+v.rise_vel*t.tau+t.w0*(1-t.decay)/v.drag+0.5*v.rise_acc*t.tau*t.tau-v.floor_y)/0.3;t.world_y=v.floor_y+0.3*(Math.max(t.soft_arg,0)+Math.ln(1+Math.exp(-Math.abs(t.soft_arg))));t.world_z=t.local_x*t.sin_yaw+t.local_z*t.cos_yaw;t.shift=v.tangent_shift*v.span_unit*(0.52+0.48*t.clamped_t/v.life)/Math.sqrt(t.dx*t.dx+t.dy*t.dy+t.dz*t.dz);t.world_x=t.world_x-t.dx*t.shift;t.world_y=t.world_y-t.dy*t.shift;t.world_z=t.world_z-t.dz*t.shift;v.head_x=t.world_x;v.head_y=t.world_y;v.head_z=t.world_z;};t.clamped_t=Math.max(v.seg_start,t.head_t-t.tail_len);(t.clamped_t>v.seg_start||!(v.tail_ready??0))?{v.tail_ready=1;v.tail_time=t.clamped_t;t.t_plus=t.clamped_t+0.01;t.tau=t.t_plus*t.time_scale;t.decay=Math.exp(-v.drag*t.tau);t.cos_turn=Math.cos(t.turn_deg*t.tau);t.sin_turn=Math.sin(t.turn_deg*t.tau);t.local_x=t.off_x+v.wobble_amp*(1-Math.exp(-2*t.tau))*Math.sin(360*t.wob_freq*t.tau+t.wob_phase)+v.drive_h*(1-t.cos_turn)/t.turn_rad+t.u0*(t.turn_rad*(1-t.decay*t.cos_turn)-v.drag*t.decay*t.sin_turn)/t.k2;t.local_z=v.drive_h*t.sin_turn/t.turn_rad+t.u0*(v.drag*(1-t.decay*t.cos_turn)+t.turn_rad*t.decay*t.sin_turn)/t.k2;t.world_x=t.local_x*t.cos_yaw-t.local_z*t.sin_yaw;t.soft_arg=(t.off_y+v.rise_vel*t.tau+t.w0*(1-t.decay)/v.drag+0.5*v.rise_acc*t.tau*t.tau-v.floor_y)/0.3;t.world_y=v.floor_y+0.3*(Math.max(t.soft_arg,0)+Math.ln(1+Math.exp(-Math.abs(t.soft_arg))));t.world_z=t.local_x*t.sin_yaw+t.local_z*t.cos_yaw;t.dx=t.world_x;t.dy=t.world_y;t.dz=t.world_z;t.t_plus=t.clamped_t-0.01;t.tau=t.t_plus*t.time_scale;t.decay=Math.exp(-v.drag*t.tau);t.cos_turn=Math.cos(t.turn_deg*t.tau);t.sin_turn=Math.sin(t.turn_deg*t.tau);t.local_x=t.off_x+v.wobble_amp*(1-Math.exp(-2*t.tau))*Math.sin(360*t.wob_freq*t.tau+t.wob_phase)+v.drive_h*(1-t.cos_turn)/t.turn_rad+t.u0*(t.turn_rad*(1-t.decay*t.cos_turn)-v.drag*t.decay*t.sin_turn)/t.k2;t.local_z=v.drive_h*t.sin_turn/t.turn_rad+t.u0*(v.drag*(1-t.decay*t.cos_turn)+t.turn_rad*t.decay*t.sin_turn)/t.k2;t.world_x=t.local_x*t.cos_yaw-t.local_z*t.sin_yaw;t.soft_arg=(t.off_y+v.rise_vel*t.tau+t.w0*(1-t.decay)/v.drag+0.5*v.rise_acc*t.tau*t.tau-v.floor_y)/0.3;t.world_y=v.floor_y+0.3*(Math.max(t.soft_arg,0)+Math.ln(1+Math.exp(-Math.abs(t.soft_arg))));t.world_z=t.local_x*t.sin_yaw+t.local_z*t.cos_yaw;t.dx=t.dx-t.world_x;t.dy=t.dy-t.world_y;t.dz=t.dz-t.world_z;t.t_plus=t.clamped_t;t.tau=t.t_plus*t.time_scale;t.decay=Math.exp(-v.drag*t.tau);t.cos_turn=Math.cos(t.turn_deg*t.tau);t.sin_turn=Math.sin(t.turn_deg*t.tau);t.local_x=t.off_x+v.wobble_amp*(1-Math.exp(-2*t.tau))*Math.sin(360*t.wob_freq*t.tau+t.wob_phase)+v.drive_h*(1-t.cos_turn)/t.turn_rad+t.u0*(t.turn_rad*(1-t.decay*t.cos_turn)-v.drag*t.decay*t.sin_turn)/t.k2;t.local_z=v.drive_h*t.sin_turn/t.turn_rad+t.u0*(v.drag*(1-t.decay*t.cos_turn)+t.turn_rad*t.decay*t.sin_turn)/t.k2;t.world_x=t.local_x*t.cos_yaw-t.local_z*t.sin_yaw;t.soft_arg=(t.off_y+v.rise_vel*t.tau+t.w0*(1-t.decay)/v.drag+0.5*v.rise_acc*t.tau*t.tau-v.floor_y)/0.3;t.world_y=v.floor_y+0.3*(Math.max(t.soft_arg,0)+Math.ln(1+Math.exp(-Math.abs(t.soft_arg))));t.world_z=t.local_x*t.sin_yaw+t.local_z*t.cos_yaw;t.shift=v.tangent_shift*v.span_unit*(0.52+0.48*t.clamped_t/v.life)/Math.sqrt(t.dx*t.dx+t.dy*t.dy+t.dz*t.dz);t.world_x=t.world_x-t.dx*t.shift;t.world_y=t.world_y-t.dy*t.shift;t.world_z=t.world_z-t.dz*t.shift;v.tail_x=t.world_x;v.tail_y=t.world_y;v.tail_z=t.world_z;};v.chord_x=v.head_x-v.tail_x;v.chord_y=v.head_y-v.tail_y;v.chord_z=v.head_z-v.tail_z;t.chord_len=Math.max(Math.sqrt(v.chord_x*v.chord_x+v.chord_y*v.chord_y+v.chord_z*v.chord_z),1.0E-4);v.half_len=0.5*t.chord_len;v.dir_x=v.chord_x/t.chord_len;v.dir_y=v.chord_y/t.chord_len;v.dir_z=v.chord_z/t.chord_len;v.uv_top=(t.head_t-v.head_time)/t.tail_len;v.uv_size=(v.head_time-v.tail_time)/t.tail_len;v.fade_alpha=Math.hermite_blend(Math.clamp((1-t.head_t/v.life)/v.fade,0,1));"
+      },
+      "minecraft:particle_motion_parametric": {
+        "relative_position": [
+          "(v.tail_x??0)+(v.chord_x??0)/2",
+          "(v.tail_y??0)+(v.chord_y??0)/2",
+          "(v.tail_z??0)+(v.chord_z??0)/2"
+        ]
+      },
+      "minecraft:particle_lifetime_events": {
+        "creation_event": "mark_emitter_done"
+      },
+      "minecraft:particle_initial_spin": {
+        "rotation": -90
+      },
+      "minecraft:particle_appearance_billboard": {
+        "size": [
+          "v.width",
+          "v.half_len??0"
+        ],
+        "facing_camera_mode": "lookat_direction",
+        "direction": {
+          "mode": "custom",
+          "custom_direction": [
+            "v.dir_x??0",
+            "v.dir_y??1",
+            "v.dir_z??0"
+          ]
+        },
+        "uv": {
+          "texture_width": 1,
+          "texture_height": 1,
+          "uv": [
+            0,
+            "v.uv_top??1"
+          ],
+          "uv_size": [
+            1,
+            "v.uv_size??0"
+          ]
+        }
+      },
+      "minecraft:particle_appearance_tinting": {
+        "color": [
+          1,
+          1,
+          1,
+          "v.alpha*(v.fade_alpha??1)"
+        ]
+      }
+    },
+    "events": {
+      "mark_emitter_done": {
+        "expression": "v.emitter_done=1;"
+      }
+    }
+  }
+}</script></div><div class="cw" id="ren-pxabgv" data-g="ren"><div class="ch"><span>ribbon:death_dispatcher (rhs.json) <span data-l="id">dispatcher efek kematian</span><span data-l="en">death effect dispatcher</span></span><button class="mini copy" data-raw="raw-ren-pxabgv"><span data-l="id">Salin JSON</span><span data-l="en">Copy JSON</span></button></div><pre><code>{
+  &quot;format_version&quot;: &quot;1.10.0&quot;,
+  &quot;particle_effect&quot;: {
+    &quot;description&quot;: {
+      &quot;identifier&quot;: &quot;ribbon:death_dispatcher&quot;,
+      &quot;basic_render_parameters&quot;: {
+        &quot;material&quot;: &quot;particles_alpha&quot;,
+        &quot;texture&quot;: &quot;textures/ribbon/dispatcher&quot;
+      }
+    },
+    &quot;events&quot;: {
+      &quot;on_expire&quot;: {
+        &quot;sequence&quot;: [
+          {
+            &quot;expression&quot;: &quot;t.size_in=v.size;t.variant_in=v.variant;&quot;
+          },
+          {
+            &quot;particle_effect&quot;: {
+              &quot;effect&quot;: &quot;ribbon:death_switch&quot;,
+              &quot;type&quot;: &quot;emitter&quot;,
+              &quot;pre_effect_expression&quot;: &quot;v.size=t.size_in;v.branch=4;v.variant=t.variant_in;&quot;
+            }
+          }
+        ]
+      }
+    },
+    &quot;components&quot;: {
+      &quot;minecraft:emitter_initialization&quot;: {
+        &quot;creation_expression&quot;: &quot;v.size=v.size??1;v.variant=v.variant??0;&quot;
+      },
+      &quot;minecraft:emitter_rate_instant&quot;: {
+        &quot;num_particles&quot;: 1
+      },
+      &quot;minecraft:emitter_lifetime_once&quot;: {
+        &quot;active_time&quot;: 0
+      },
+      &quot;minecraft:emitter_shape_point&quot;: {},
+      &quot;minecraft:particle_lifetime_expression&quot;: {
+        &quot;max_lifetime&quot;: 0
+      },
+      &quot;minecraft:particle_appearance_billboard&quot;: {
+        &quot;size&quot;: [
+          0,
+          0
+        ]
+      },
+      &quot;minecraft:particle_lifetime_events&quot;: {
+        &quot;expiration_event&quot;: &quot;on_expire&quot;
+      }
+    }
+  }
+}</code></pre><script type="text/plain" id="raw-ren-pxabgv">{
+  "format_version": "1.10.0",
+  "particle_effect": {
+    "description": {
+      "identifier": "ribbon:death_dispatcher",
+      "basic_render_parameters": {
+        "material": "particles_alpha",
+        "texture": "textures/ribbon/dispatcher"
+      }
+    },
+    "events": {
+      "on_expire": {
+        "sequence": [
+          {
+            "expression": "t.size_in=v.size;t.variant_in=v.variant;"
+          },
+          {
+            "particle_effect": {
+              "effect": "ribbon:death_switch",
+              "type": "emitter",
+              "pre_effect_expression": "v.size=t.size_in;v.branch=4;v.variant=t.variant_in;"
+            }
+          }
+        ]
+      }
+    },
+    "components": {
+      "minecraft:emitter_initialization": {
+        "creation_expression": "v.size=v.size??1;v.variant=v.variant??0;"
+      },
+      "minecraft:emitter_rate_instant": {
+        "num_particles": 1
+      },
+      "minecraft:emitter_lifetime_once": {
+        "active_time": 0
+      },
+      "minecraft:emitter_shape_point": {},
+      "minecraft:particle_lifetime_expression": {
+        "max_lifetime": 0
+      },
+      "minecraft:particle_appearance_billboard": {
+        "size": [
+          0,
+          0
+        ]
+      },
+      "minecraft:particle_lifetime_events": {
+        "expiration_event": "on_expire"
+      }
+    }
+  }
+}</script></div><div class="cw" id="ren-suara" data-g="ren"><div class="ch"><span><span data-l="id">sound_effect di ribbon:death_stage (rhp.json) dan ribbon:death_burst (rhx.json)</span><span data-l="en">sound_effect in ribbon:death_stage (rhp.json) and ribbon:death_burst (rhx.json)</span></span><button class="mini copy" data-raw="raw-ren-suara"><span data-l="id">Salin JSON</span><span data-l="en">Copy JSON</span></button></div><pre><code>{
+  &quot;ribbon:death_stage&quot;: {
+    &quot;identifier&quot;: &quot;ribbon:death_stage&quot;,
+    &quot;events&quot;: {
+      &quot;on_trigger&quot;: {
+        &quot;sequence&quot;: [
+          {
+            &quot;sound_effect&quot;: {
+              &quot;event_name&quot;: &quot;tripod&quot;
+            }
+          },
+          {
+            &quot;sound_effect&quot;: {
+              &quot;event_name&quot;: &quot;wind_charge.burst&quot;
+            }
+          }
+        ]
+      },
+      &quot;suvmzi&quot;: {
+        &quot;sequence&quot;: [
+          {
+            &quot;particle_effect&quot;: {
+              &quot;effect&quot;: &quot;ribbon:death_child&quot;,
+              &quot;type&quot;: &quot;emitter&quot;,
+              &quot;pre_effect_expression&quot;: &quot;v.param_a=t.in_a;v.param_b=t.in_b;v.variant=t.in_variant;&quot;
+            }
+          }
+        ]
+      },
+      &quot;yugjxw&quot;: {
+        &quot;sequence&quot;: [
+          {
+            &quot;particle_effect&quot;: {
+              &quot;effect&quot;: &quot;ribbon:metamq&quot;,
+              &quot;type&quot;: &quot;emitter&quot;,
+              &quot;pre_effect_expression&quot;: &quot;v.param_a=t.in_a;v.variant=t.in_variant;&quot;
+            }
+          }
+        ]
+      },
+      &quot;ttnhml&quot;: {
+        &quot;sequence&quot;: [
+          {
+            &quot;particle_effect&quot;: {
+              &quot;effect&quot;: &quot;ribbon:ysntbz&quot;,
+              &quot;type&quot;: &quot;emitter&quot;,
+              &quot;pre_effect_expression&quot;: &quot;v.param_a=t.in_a;v.param_b=t.in_b;v.variant=t.in_variant;&quot;
+            }
+          }
+        ]
+      },
+      &quot;vjojpr&quot;: {
+        &quot;sequence&quot;: [
+          {
+            &quot;particle_effect&quot;: {
+              &quot;effect&quot;: &quot;ribbon:tepqaf&quot;,
+              &quot;type&quot;: &quot;emitter&quot;,
+              &quot;pre_effect_expression&quot;: &quot;v.param_a=t.in_a;&quot;
+            }
+          },
+          {
+            &quot;particle_effect&quot;: {
+              &quot;effect&quot;: &quot;ribbon:ytfshb&quot;,
+              &quot;type&quot;: &quot;emitter&quot;,
+              &quot;pre_effect_expression&quot;: &quot;v.param_a=t.in_a;&quot;
+            }
+          }
+        ]
+      },
+      &quot;elrzez&quot;: {
+        &quot;sequence&quot;: [
+          {
+            &quot;particle_effect&quot;: {
+              &quot;effect&quot;: &quot;ribbon:hmkxlr&quot;,
+              &quot;type&quot;: &quot;emitter&quot;,
+              &quot;pre_effect_expression&quot;: &quot;v.param_a=t.in_a;v.variant=t.in_variant;v.spawn_flag=t.in_variant!=2;&quot;
+            }
+          }
+        ]
+      },
+      &quot;pgxvvg&quot;: {
+        &quot;sequence&quot;: [
+          {
+            &quot;particle_effect&quot;: {
+              &quot;effect&quot;: &quot;ribbon:death_burst&quot;,
+              &quot;type&quot;: &quot;emitter&quot;,
+              &quot;pre_effect_expression&quot;: &quot;v.variant=t.in_variant;v.spawn_flag=t.in_variant!=2;&quot;
+            }
+          }
+        ]
+      }
+    }
+  },
+  &quot;ribbon:death_burst&quot;: {
+    &quot;identifier&quot;: &quot;ribbon:death_burst&quot;,
+    &quot;events&quot;: {
+      &quot;on_trigger&quot;: {
+        &quot;sequence&quot;: [
+          {
+            &quot;sound_effect&quot;: {
+              &quot;event_name&quot;: &quot;sonic_boom&quot;
+            }
+          },
+          {
+            &quot;sound_effect&quot;: {
+              &quot;event_name&quot;: &quot;respawn_anchor.deplete&quot;
+            }
+          },
+          {
+            &quot;sound_effect&quot;: {
+              &quot;event_name&quot;: &quot;particle.soul_escape.loud&quot;
+            }
+          }
+        ]
+      },
+      &quot;pgxvvg&quot;: {
+        &quot;sequence&quot;: []
+      }
+    }
+  }
+}</code></pre><script type="text/plain" id="raw-ren-suara">{
+  "ribbon:death_stage": {
+    "identifier": "ribbon:death_stage",
+    "events": {
+      "on_trigger": {
+        "sequence": [
+          {
+            "sound_effect": {
+              "event_name": "tripod"
+            }
+          },
+          {
+            "sound_effect": {
+              "event_name": "wind_charge.burst"
+            }
+          }
+        ]
+      },
+      "suvmzi": {
+        "sequence": [
+          {
+            "particle_effect": {
+              "effect": "ribbon:death_child",
+              "type": "emitter",
+              "pre_effect_expression": "v.param_a=t.in_a;v.param_b=t.in_b;v.variant=t.in_variant;"
+            }
+          }
+        ]
+      },
+      "yugjxw": {
+        "sequence": [
+          {
+            "particle_effect": {
+              "effect": "ribbon:metamq",
+              "type": "emitter",
+              "pre_effect_expression": "v.param_a=t.in_a;v.variant=t.in_variant;"
+            }
+          }
+        ]
+      },
+      "ttnhml": {
+        "sequence": [
+          {
+            "particle_effect": {
+              "effect": "ribbon:ysntbz",
+              "type": "emitter",
+              "pre_effect_expression": "v.param_a=t.in_a;v.param_b=t.in_b;v.variant=t.in_variant;"
+            }
+          }
+        ]
+      },
+      "vjojpr": {
+        "sequence": [
+          {
+            "particle_effect": {
+              "effect": "ribbon:tepqaf",
+              "type": "emitter",
+              "pre_effect_expression": "v.param_a=t.in_a;"
+            }
+          },
+          {
+            "particle_effect": {
+              "effect": "ribbon:ytfshb",
+              "type": "emitter",
+              "pre_effect_expression": "v.param_a=t.in_a;"
+            }
+          }
+        ]
+      },
+      "elrzez": {
+        "sequence": [
+          {
+            "particle_effect": {
+              "effect": "ribbon:hmkxlr",
+              "type": "emitter",
+              "pre_effect_expression": "v.param_a=t.in_a;v.variant=t.in_variant;v.spawn_flag=t.in_variant!=2;"
+            }
+          }
+        ]
+      },
+      "pgxvvg": {
+        "sequence": [
+          {
+            "particle_effect": {
+              "effect": "ribbon:death_burst",
+              "type": "emitter",
+              "pre_effect_expression": "v.variant=t.in_variant;v.spawn_flag=t.in_variant!=2;"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "ribbon:death_burst": {
+    "identifier": "ribbon:death_burst",
+    "events": {
+      "on_trigger": {
+        "sequence": [
+          {
+            "sound_effect": {
+              "event_name": "sonic_boom"
+            }
+          },
+          {
+            "sound_effect": {
+              "event_name": "respawn_anchor.deplete"
+            }
+          },
+          {
+            "sound_effect": {
+              "event_name": "particle.soul_escape.loud"
+            }
+          }
+        ]
+      },
+      "pgxvvg": {
+        "sequence": []
+      }
+    }
+  }
+}</script></div></div></div>
+<div class="tp" data-tab="map"><div class="panel"><h3><span data-l="id">Variabel v.*</span><span data-l="en">Variables v.*</span></h3><p><span data-l="id">pasti = terbukti dari rumus atau pemakaian; dugaan = tebakan dari bentuk rumus.</span><span data-l="en">certain = proven by the formulas or usage; guess = inferred from the shape of the formulas.</span></p><div class="tw"><table><tr><th>Obfuscated</th><th>Rename</th><th><span data-l="id">Arti</span><span data-l="en">Meaning</span></th><th>Status</th></tr><tr><td class="m">sealpe</td><td class="m">spawn_flag</td><td><span data-l="id">flag aktivasi emitter anak (activation_expression), =1 hanya saat segmen baru perlu dibuat</span><span data-l="en">activation flag of the child emitter (activation_expression); 1 only when a new segment must be created</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">wnaarx</td><td class="m">emitter_done</td><td><span data-l="id">diisi 1 oleh creation_event supaya emitter anak langsung expired</span><span data-l="en">set to 1 by creation_event so the child emitter expires right away</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">zezhjg</td><td class="m">rand_1</td><td><span data-l="id">angka acak 0..1 dari v.emitter_random_1: arah yaw</span><span data-l="en">random 0..1 from v.emitter_random_1: yaw direction</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">ncdila</td><td class="m">rand_2</td><td><span data-l="id">angka acak dari emitter_random_2: tanda arah putar (kiri/kanan)</span><span data-l="en">random from emitter_random_2: turn sign (left/right)</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">xjpjyu</td><td class="m">rand_3</td><td><span data-l="id">angka acak dari emitter_random_3: variasi laju putar</span><span data-l="en">random from emitter_random_3: turn rate variation</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">lqkmak</td><td class="m">rand_4</td><td><span data-l="id">angka acak dari emitter_random_4: variasi sudut naik</span><span data-l="en">random from emitter_random_4: pitch variation</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">wthuxi</td><td class="m">heading</td><td><span data-l="id">arah hadap dasar (derajat), opsional dari luar: v.wthuxi??0</span><span data-l="en">base heading (degrees), optional from outside: v.wthuxi??0</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">wtvnff</td><td class="m">heading_offset</td><td><span data-l="id">offset arah hadap tambahan</span><span data-l="en">extra heading offset</span></td><td class="d"><span data-l="id">dugaan</span><span data-l="en">guess</span></td></tr><tr><td class="m">bthhlw</td><td class="m">heading_spread</td><td><span data-l="id">sebaran arah (derajat) di sekitar heading</span><span data-l="en">direction spread (degrees) around heading</span></td><td class="d"><span data-l="id">dugaan</span><span data-l="en">guess</span></td></tr><tr><td class="m">etjjqu</td><td class="m">pitch</td><td><span data-l="id">sudut naik dasar (derajat)</span><span data-l="en">base pitch angle (degrees)</span></td><td class="d"><span data-l="id">dugaan</span><span data-l="en">guess</span></td></tr><tr><td class="m">beroaq</td><td class="m">pitch_var</td><td><span data-l="id">variasi sudut naik</span><span data-l="en">pitch variation</span></td><td class="d"><span data-l="id">dugaan</span><span data-l="en">guess</span></td></tr><tr><td class="m">ztryfb</td><td class="m">speed</td><td><span data-l="id">kecepatan awal</span><span data-l="en">initial speed</span></td><td class="d"><span data-l="id">dugaan</span><span data-l="en">guess</span></td></tr><tr><td class="m">hnhgfv</td><td class="m">speed_var</td><td><span data-l="id">variasi kecepatan awal</span><span data-l="en">initial speed variation</span></td><td class="d"><span data-l="id">dugaan</span><span data-l="en">guess</span></td></tr><tr><td class="m">jnlytl</td><td class="m">drag</td><td><span data-l="id">peredam (koefisien exp(-drag*t))</span><span data-l="en">drag (coefficient in exp(-drag*t))</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">kuqrrk</td><td class="m">drive_h</td><td><span data-l="id">dorongan horizontal konstan yang ikut berputar</span><span data-l="en">constant horizontal drive that rotates with the path</span></td><td class="d"><span data-l="id">dugaan</span><span data-l="en">guess</span></td></tr><tr><td class="m">rfyrjn</td><td class="m">rise_vel</td><td><span data-l="id">kecepatan naik konstan</span><span data-l="en">constant rise velocity</span></td><td class="d"><span data-l="id">dugaan</span><span data-l="en">guess</span></td></tr><tr><td class="m">bwzrya</td><td class="m">rise_acc</td><td><span data-l="id">percepatan vertikal</span><span data-l="en">vertical acceleration</span></td><td class="d"><span data-l="id">dugaan</span><span data-l="en">guess</span></td></tr><tr><td class="m">yrmsrz</td><td class="m">turn_rate</td><td><span data-l="id">laju putar (derajat/detik), penentu kelengkungan</span><span data-l="en">turn rate (degrees/second), main curvature control</span></td><td class="d"><span data-l="id">dugaan</span><span data-l="en">guess</span></td></tr><tr><td class="m">tcfuth</td><td class="m">turn_var</td><td><span data-l="id">variasi laju putar</span><span data-l="en">turn rate variation</span></td><td class="d"><span data-l="id">dugaan</span><span data-l="en">guess</span></td></tr><tr><td class="m">lylwux</td><td class="m">jitter</td><td><span data-l="id">geser posisi awal acak</span><span data-l="en">random start offset</span></td><td class="d"><span data-l="id">dugaan</span><span data-l="en">guess</span></td></tr><tr><td class="m">vwnkhl</td><td class="m">floor_y</td><td><span data-l="id">lantai halus (-100 = tidak aktif)</span><span data-l="en">soft floor (-100 = disabled)</span></td><td class="d"><span data-l="id">dugaan</span><span data-l="en">guess</span></td></tr><tr><td class="m">rocdkr</td><td class="m">wobble_amp</td><td><span data-l="id">amplitudo getaran sinus (0 = mati)</span><span data-l="en">sine wobble amplitude (0 = off)</span></td><td class="d"><span data-l="id">dugaan</span><span data-l="en">guess</span></td></tr><tr><td class="m">uzxsur</td><td class="m">wobble_freq</td><td><span data-l="id">frekuensi getaran (0 = mati)</span><span data-l="en">wobble frequency (0 = off)</span></td><td class="d"><span data-l="id">dugaan</span><span data-l="en">guess</span></td></tr><tr><td class="m">opkfto</td><td class="m">time_scale_var</td><td><span data-l="id">variasi skala waktu (0 = mati)</span><span data-l="en">time scale variation (0 = off)</span></td><td class="d"><span data-l="id">dugaan</span><span data-l="en">guess</span></td></tr><tr><td class="m">cukcoh</td><td class="m">life</td><td><span data-l="id">umur total ribbon (detik), Math.random(2.5,4)</span><span data-l="en">total ribbon lifetime (seconds), Math.random(2.5,4)</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">ishvtr</td><td class="m">seg_start</td><td><span data-l="id">waktu kurva tempat segmen ini mulai</span><span data-l="en">curve time where this segment starts</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">qbuziw</td><td class="m">seg_duration</td><td><span data-l="id">lama waktu kurva yang dicakup segmen</span><span data-l="en">amount of curve time the segment covers</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">hvhmku</td><td class="m">age_offset</td><td><span data-l="id">selisih emitter_age dan seg_start saat segmen lahir</span><span data-l="en">emitter_age minus seg_start when the segment is born</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">slxbjl</td><td class="m">slack</td><td><span data-l="id">kelonggaran waktu kepala (frame delta)</span><span data-l="en">head time slack (frame delta)</span></td><td class="d"><span data-l="id">dugaan</span><span data-l="en">guess</span></td></tr><tr><td class="m">uegcos</td><td class="m">tail_mul</td><td><span data-l="id">pengali panjang ekor</span><span data-l="en">tail length multiplier</span></td><td class="d"><span data-l="id">dugaan</span><span data-l="en">guess</span></td></tr><tr><td class="m">bzfdek</td><td class="m">span_mul</td><td><span data-l="id">pengali panjang/lebar segmen</span><span data-l="en">segment length/width multiplier</span></td><td class="d"><span data-l="id">dugaan</span><span data-l="en">guess</span></td></tr><tr><td class="m">gglvvx</td><td class="m">span_unit</td><td><span data-l="id">satuan panjang segmen</span><span data-l="en">segment length unit</span></td><td class="d"><span data-l="id">dugaan</span><span data-l="en">guess</span></td></tr><tr><td class="m">obhshf</td><td class="m">span_div</td><td><span data-l="id">pembagi panjang segmen</span><span data-l="en">segment length divisor</span></td><td class="d"><span data-l="id">dugaan</span><span data-l="en">guess</span></td></tr><tr><td class="m">cffrac</td><td class="m">tangent_shift</td><td><span data-l="id">geseran titik sepanjang tangen (0 = mati)</span><span data-l="en">shift of points along the tangent (0 = off)</span></td><td class="d"><span data-l="id">dugaan</span><span data-l="en">guess</span></td></tr><tr><td class="m">jybyse</td><td class="m">width</td><td><span data-l="id">lebar ribbon (size[0])</span><span data-l="en">ribbon width (size[0])</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">otdjpj</td><td class="m">alpha</td><td><span data-l="id">alpha maksimum</span><span data-l="en">maximum alpha</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">kqazqv</td><td class="m">fade</td><td><span data-l="id">porsi umur untuk memudar di akhir</span><span data-l="en">fraction of lifetime used to fade out</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">cpbtni</td><td class="m">tick_rate</td><td><span data-l="id">30: frekuensi pengecekan segmen per detik</span><span data-l="en">30: segment checks per second</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">kzfvux</td><td class="m">seg_factor</td><td><span data-l="id">pengali jumlah tick per segmen</span><span data-l="en">multiplier for ticks per segment</span></td><td class="d"><span data-l="id">dugaan</span><span data-l="en">guess</span></td></tr><tr><td class="m">gdqxbi</td><td class="m">emit_until</td><td><span data-l="id">pecahan umur sampai segmen masih dibuat</span><span data-l="en">fraction of lifetime in which segments are still created</span></td><td class="d"><span data-l="id">dugaan</span><span data-l="en">guess</span></td></tr><tr><td class="m">gjrwuf</td><td class="m">slack_mul</td><td><span data-l="id">pengali frame delta untuk slack</span><span data-l="en">frame delta multiplier for slack</span></td><td class="d"><span data-l="id">dugaan</span><span data-l="en">guess</span></td></tr><tr><td class="m">brifbs</td><td class="m">frame_dt</td><td><span data-l="id">selisih waktu antar pemanggilan event (maks 0.1)</span><span data-l="en">time between event calls (max 0.1)</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">ufzvdc</td><td class="m">next_tick</td><td><span data-l="id">tick awal segmen berikutnya (counter di emitter)</span><span data-l="en">start tick of the next segment (counter in the emitter)</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">hvaerk</td><td class="m">head_count</td><td><span data-l="id">jumlah partikel kepala dari emitter (0)</span><span data-l="en">number of head particles from the emitter (0)</span></td><td class="d"><span data-l="id">dugaan</span><span data-l="en">guess</span></td></tr><tr><td class="m">adphax</td><td class="m">tail_time</td><td><span data-l="id">waktu kurva titik ekor (di partikel anak)</span><span data-l="en">curve time of the tail point (in the child particle)</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">mbjzhu</td><td class="m">head_time</td><td><span data-l="id">waktu kurva titik kepala (di partikel anak)</span><span data-l="en">curve time of the head point (in the child particle)</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">ezlwot</td><td class="m">head_done</td><td><span data-l="id">1 bila kepala sudah sampai ujung segmen</span><span data-l="en">1 when the head reached the end of the segment</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">gbvvfl</td><td class="m">tail_ready</td><td><span data-l="id">1 bila titik ekor sudah pernah dihitung</span><span data-l="en">1 once the tail point has been computed</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">sbhmli</td><td class="m">tail_x</td><td><span data-l="id">posisi ekor X</span><span data-l="en">tail position X</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">yastfm</td><td class="m">tail_y</td><td><span data-l="id">posisi ekor Y</span><span data-l="en">tail position Y</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">gnpcix</td><td class="m">tail_z</td><td><span data-l="id">posisi ekor Z</span><span data-l="en">tail position Z</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">kgobpa</td><td class="m">head_x</td><td><span data-l="id">posisi kepala X</span><span data-l="en">head position X</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">btvsmm</td><td class="m">head_y</td><td><span data-l="id">posisi kepala Y</span><span data-l="en">head position Y</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">rkkgoo</td><td class="m">head_z</td><td><span data-l="id">posisi kepala Z</span><span data-l="en">head position Z</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">zjnsat</td><td class="m">chord_x</td><td><span data-l="id">kepala minus ekor X</span><span data-l="en">head minus tail X</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">sfekmw</td><td class="m">chord_y</td><td><span data-l="id">kepala minus ekor Y</span><span data-l="en">head minus tail Y</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">wtabsj</td><td class="m">chord_z</td><td><span data-l="id">kepala minus ekor Z</span><span data-l="en">head minus tail Z</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">cfglpd</td><td class="m">half_len</td><td><span data-l="id">setengah panjang tali busur (size[1])</span><span data-l="en">half the chord length (size[1])</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">rowpry</td><td class="m">dir_x</td><td><span data-l="id">arah ekor ke kepala X (custom_direction)</span><span data-l="en">tail-to-head direction X (custom_direction)</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">rgwjra</td><td class="m">dir_y</td><td><span data-l="id">arah Y</span><span data-l="en">tail-to-head direction Y (custom_direction)</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">ipczvr</td><td class="m">dir_z</td><td><span data-l="id">arah Z</span><span data-l="en">tail-to-head direction Z (custom_direction)</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">nviqsz</td><td class="m">uv_top</td><td><span data-l="id">awal jendela UV (v)</span><span data-l="en">start of the UV window (v)</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">sbiadh</td><td class="m">uv_size</td><td><span data-l="id">tinggi jendela UV</span><span data-l="en">height of the UV window</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">jsnlhn</td><td class="m">fade_alpha</td><td><span data-l="id">faktor fade global (hermite_blend)</span><span data-l="en">global fade factor (hermite_blend)</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">kviigs</td><td class="m">size</td><td><span data-l="id">parameter 1..4 dari controller (pxabgv)</span><span data-l="en">parameter 1..4 from the controller (pxabgv)</span></td><td class="d"><span data-l="id">dugaan</span><span data-l="en">guess</span></td></tr><tr><td class="m">ymfcwu</td><td class="m">variant</td><td><span data-l="id">parameter 0..3 dari controller (pxabgv)</span><span data-l="en">parameter 0..3 from the controller (pxabgv)</span></td><td class="d"><span data-l="id">dugaan</span><span data-l="en">guess</span></td></tr><tr><td class="m">wtslzj</td><td class="m">prev_age</td><td><span data-l="id">emitter_age pemanggilan sebelumnya, dipakai menghitung frame_dt</span><span data-l="en">emitter_age of the previous call, used to compute frame_dt</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr><tr><td class="m">pjtoss</td><td class="m">param_a</td><td><span data-l="id">parameter yang diteruskan ke ribbon:wysuyj (arti belum dipastikan)</span><span data-l="en">parameter passed on to ribbon:wysuyj (meaning not confirmed)</span></td><td class="d"><span data-l="id">dugaan</span><span data-l="en">guess</span></td></tr><tr><td class="m">tjvlld</td><td class="m">param_b</td><td><span data-l="id">parameter yang diteruskan ke ribbon:wysuyj (arti belum dipastikan)</span><span data-l="en">parameter passed on to ribbon:wysuyj (meaning not confirmed)</span></td><td class="d"><span data-l="id">dugaan</span><span data-l="en">guess</span></td></tr><tr><td class="m">kozdua</td><td class="m">branch</td><td><span data-l="id">pemilih anak di hzxbiw (selalu 4 dari pxabgv)</span><span data-l="en">child selector in hzxbiw (always 4 from pxabgv)</span></td><td class="p"><span data-l="id">pasti</span><span data-l="en">certain</span></td></tr></table></div><h3><span data-l="id">Identifier, tekstur, event</span><span data-l="en">Identifiers, textures, events</span></h3><div class="tw"><table><tr><th>Obfuscated</th><th>Rename</th></tr><tr><td class="m">ribbon:endckw</td><td class="m">ribbon:soul_emitter</td></tr><tr><td class="m">ribbon:wrbaad</td><td class="m">ribbon:soul_segment</td></tr><tr><td class="m">ribbon:pxabgv</td><td class="m">ribbon:death_dispatcher</td></tr><tr><td class="m">ribbon:hzxbiw</td><td class="m">ribbon:death_switch</td></tr><tr><td class="m">ribbon:mdeyzy</td><td class="m">ribbon:death_stage</td></tr><tr><td class="m">ribbon:kjnksh</td><td class="m">ribbon:death_burst</td></tr><tr><td class="m">ribbon:wysuyj</td><td class="m">ribbon:death_child</td></tr><tr><td class="m">textures/ribbon/ans/qcz</td><td class="m">textures/ribbon/warden_soul</td></tr><tr><td class="m">textures/ribbon/dgk</td><td class="m">textures/ribbon/dispatcher</td></tr><tr><td class="m">bsopxi</td><td class="m">on_tick</td></tr><tr><td class="m">xavtau</td><td class="m">on_expire</td></tr><tr><td class="m">kfjwfy</td><td class="m">mark_emitter_done</td></tr><tr><td class="m">iimnuf</td><td class="m">on_trigger</td></tr></table></div><details><summary><span data-l="id">Variabel sementara</span><span data-l="en">Temporary variables</span> t.* (82)</summary><p><code>jyz</code> &rarr; <code>r1</code>, <code>fmp</code> &rarr; <code>r2</code>, <code>uiw</code> &rarr; <code>r3</code>, <code>hgg</code> &rarr; <code>r4</code>, <code>lnq</code> &rarr; <code>turn_sign</code>, <code>xtk</code> &rarr; <code>time_scale</code>, <code>efd</code> &rarr; <code>turn_deg</code>, <code>ibe</code> &rarr; <code>turn_rad</code>, <code>moa</code> &rarr; <code>yaw</code>, <code>hzh</code> &rarr; <code>cos_yaw</code>, <code>dmb</code> &rarr; <code>sin_yaw</code>, <code>pea</code> &rarr; <code>pitch_a</code>, <code>bbs</code> &rarr; <code>speed_a</code>, <code>oyt</code> &rarr; <code>u0</code>, <code>cub</code> &rarr; <code>w0</code>, <code>dkm</code> &rarr; <code>k2</code>, <code>alv</code> &rarr; <code>off_x</code>, <code>lhv</code> &rarr; <code>off_y</code>, <code>ilt</code> &rarr; <code>wob_freq</code>, <code>kwl</code> &rarr; <code>wob_phase</code>, <code>byr</code> &rarr; <code>head_t</code>, <code>psw</code> &rarr; <code>end_t</code>, <code>saf</code> &rarr; <code>tail_len</code>, <code>asn</code> &rarr; <code>clamped_t</code>, <code>qtr</code> &rarr; <code>t_plus</code>, <code>bmb</code> &rarr; <code>tau</code>, <code>jor</code> &rarr; <code>decay</code>, <code>gzs</code> &rarr; <code>cos_turn</code>, <code>puw</code> &rarr; <code>sin_turn</code>, <code>kvo</code> &rarr; <code>local_x</code>, <code>bmd</code> &rarr; <code>local_z</code>, <code>bvy</code> &rarr; <code>world_x</code>, <code>oxj</code> &rarr; <code>soft_arg</code>, <code>phn</code> &rarr; <code>world_y</code>, <code>uee</code> &rarr; <code>world_z</code>, <code>wst</code> &rarr; <code>dx</code>, <code>fnw</code> &rarr; <code>dy</code>, <code>jtr</code> &rarr; <code>dz</code>, <code>fsd</code> &rarr; <code>chord_len</code>, <code>f</code> &rarr; <code>shift</code>, <code>k</code> &rarr; <code>tick</code>, <code>hng</code> &rarr; <code>seg_tick</code>, <code>ssu</code> &rarr; <code>seg_start</code>, <code>yrn</code> &rarr; <code>seg_span</code>, <code>hqo</code> &rarr; <code>seg_ticks</code>, <code>tuv</code> &rarr; <code>seg_duration</code>, <code>wij</code> &rarr; <code>age_offset</code>, <code>ngk</code> &rarr; <code>seg_width</code>, <code>lot</code> &rarr; <code>spawn</code>, <code>vqp</code> &rarr; <code>slack</code>, <code>mzj</code> &rarr; <code>size_in</code>, <code>mto</code> &rarr; <code>variant_in</code>, <code>fwk</code> &rarr; <code>c_life</code>, <code>rwm</code> &rarr; <code>c_heading</code>, <code>asd</code> &rarr; <code>c_pitch</code>, <code>ste</code> &rarr; <code>c_pitch_var</code>, <code>iin</code> &rarr; <code>c_speed</code>, <code>vyr</code> &rarr; <code>c_speed_var</code>, <code>lbd</code> &rarr; <code>c_heading_offset</code>, <code>ntw</code> &rarr; <code>c_heading_spread</code>, <code>csc</code> &rarr; <code>c_drag</code>, <code>agm</code> &rarr; <code>c_drive_h</code>, <code>zwh</code> &rarr; <code>c_rise_vel</code>, <code>bgw</code> &rarr; <code>c_rise_acc</code>, <code>nwr</code> &rarr; <code>c_floor_y</code>, <code>pyw</code> &rarr; <code>c_turn_rate</code>, <code>xqr</code> &rarr; <code>c_turn_var</code>, <code>was</code> &rarr; <code>c_wobble_amp</code>, <code>pxu</code> &rarr; <code>c_wobble_freq</code>, <code>ayg</code> &rarr; <code>c_time_scale_var</code>, <code>hfa</code> &rarr; <code>c_jitter</code>, <code>yke</code> &rarr; <code>c_rand_1</code>, <code>xyb</code> &rarr; <code>c_rand_2</code>, <code>tzh</code> &rarr; <code>c_rand_3</code>, <code>lqg</code> &rarr; <code>c_rand_4</code>, <code>mbh</code> &rarr; <code>c_span_unit</code>, <code>laa</code> &rarr; <code>c_span_div</code>, <code>rrp</code> &rarr; <code>c_alpha</code>, <code>hoq</code> &rarr; <code>c_fade</code>, <code>qtq</code> &rarr; <code>c_tail_mul</code>, <code>ucn</code> &rarr; <code>c_span_mul</code>, <code>vrm</code> &rarr; <code>c_tangent_shift</code></p><p><span data-l="id">Catatan: nama t.* dipakai ulang antar file dengan arti berbeda; di blok suara dipakai pemetaan terpisah (in_a, in_b, in_variant).</span><span data-l="en">Note: t.* names are reused across files with different meanings; the sound block uses a separate mapping (in_a, in_b, in_variant).</span></p></details></div></div>
+<div class="nav2"><button class="obtn" data-go="recreated"><b><span data-l="id">Lanjut: Recreated Ribbon Particle</span><span data-l="en">Next: Recreated Ribbon Particle</span></b></button></div></section>
+
+<section class="page" id="page-recreated"><div class="top"><button class="mini" data-go="home">&lt; Menu</button><h2>Recreated Ribbon Particle: Soul Ribbon</h2><button class="mini" data-go="lang"><span data-l="id">Bahasa</span><span data-l="en">Language</span></button></div>
+<div class="tabs"><button class="tab on" data-tab="why"><span data-l="id">Penjelasan</span><span data-l="en">Explanation</span></button><button class="tab" data-tab="code"><span data-l="id">Kode</span><span data-l="en">Code</span></button><button class="tab" data-tab="par"><span data-l="id">Parameter dan Tes</span><span data-l="en">Parameters and Tests</span></button></div>
+<div class="tp on" data-tab="why"><div class="panel"><h3><span data-l="id">Ribbon melengkung dalam satu file</span><span data-l="en">A curved ribbon in one file</span></h3>
+<p><span data-l="id">Action &amp; Stuff memakai dua partikel: induk menelurkan anak per segmen. Soul Ribbon (<code>ribbon:soul_ribbon</code>) memakai <b>satu</b> file, dengan tekstur yang sama (<code>textures/ribbon/warden_soul</code>) dan UV yang sama.</span><span data-l="en">Action &amp; Stuff uses two particles: a parent spawns a child per segment. Soul Ribbon (<code>ribbon:soul_ribbon</code>) uses <b>one</b> file, with the same texture (<code>textures/ribbon/warden_soul</code>) and the same UV.</span></p>
+<div class="tw"><table><tr><th></th><th>Action &amp; Stuff</th><th>Soul Ribbon</th></tr>
+<tr><td><span data-l="id">File partikel</span><span data-l="en">Particle files</span></td><td><span data-l="id">2 (endckw + wrbaad)</span><span data-l="en">2 (endckw + wrbaad)</span></td><td>1</td></tr>
+<tr><td><span data-l="id">Penentu segmen</span><span data-l="en">Segment selection</span></td><td><span data-l="id">counter di emitter + timeline 30 Hz</span><span data-l="en">counter in the emitter + 30 Hz timeline</span></td><td><span data-l="id">dari waktu lahir partikel: floor((emitter_age - particle_age) * rate + 0.2)</span><span data-l="en">from the particle birth time: floor((emitter_age - particle_age) * rate + 0.2)</span></td></tr>
+<tr><td><span data-l="id">Kirim data ke segmen</span><span data-l="en">Passing data to a segment</span></td><td><span data-l="id">pre_effect_expression (±37 variabel)</span><span data-l="en">pre_effect_expression (~37 variables)</span></td><td><span data-l="id">tidak perlu: semua partikel membaca konstanta emitter yang sama</span><span data-l="en">not needed: every particle reads the same emitter constants</span></td></tr>
+<tr><td><span data-l="id">Panjang segmen</span><span data-l="en">Segment length</span></td><td><span data-l="id">bervariasi</span><span data-l="en">varies</span></td><td><span data-l="id">tetap 1/rate detik</span><span data-l="en">fixed at 1/rate seconds</span></td></tr>
+<tr><td><span data-l="id">Dibuang</span><span data-l="en">Dropped</span></td><td>-</td><td><span data-l="id">wobble, lantai halus, geseran tangen, sprite kepala (di endckw nilainya 0 atau tidak berpengaruh)</span><span data-l="en">wobble, soft floor, tangent shift, head sprite (in endckw they are 0 or have no effect)</span></td></tr></table></div>
+<h3><span data-l="id">Cara kerja</span><span data-l="en">How it works</span></h3><ol>
+<li><span data-l="id">Emitter mengisi konstanta dan 4 angka acak (<code>emitter_random_1</code> sampai <code>_4</code>). Semua partikel berbagi angka itu, jadi semua potongan berada di kurva yang sama.</span><span data-l="en">The emitter sets the constants and 4 random numbers (<code>emitter_random_1</code> to <code>_4</code>). All particles share them, so all pieces lie on the same curve.</span></li>
+<li><span data-l="id"><code>emitter_rate_steady</code> memunculkan 8 partikel per detik. Tiap partikel adalah satu ubin waktu kurva [j/8, (j+1)/8] dengan <code>j = floor((emitter_age - particle_age) * rate + 0.2)</code>.</span><span data-l="en"><code>emitter_rate_steady</code> spawns 8 particles per second. Each particle is one curve-time tile [j/8, (j+1)/8] with <code>j = floor((emitter_age - particle_age) * rate + 0.2)</code>.</span></li>
+<li><span data-l="id">Kepala ribbon ada di waktu kurva <code>T = emitter_age</code>, ekor di <code>T - L</code> dengan <code>L = len * (0.52 + 0.48 * T / life)</code>. Bagian ubin yang terlihat adalah irisan ubin dengan [T-L, T]: <code>lo</code> dan <code>hi</code>.</span><span data-l="en">The ribbon head sits at curve time <code>T = emitter_age</code> and the tail at <code>T - L</code> with <code>L = len * (0.52 + 0.48 * T / life)</code>. The visible part of a tile is its overlap with [T-L, T]: <code>lo</code> and <code>hi</code>.</span></li>
+<li><span data-l="id">Titik <code>P(lo)</code> dan <code>P(hi)</code> dihitung rumus spiral meredam (exp, cos, sin) yang sama dengan wrbaad (selisih numerik sekitar 1e-8). Posisi partikel = titik tengah, <code>size[1]</code> = setengah jarak, <code>custom_direction</code> = vektor ekor ke kepala, dengan <code>lookat_direction</code> dan rotasi -90.</span><span data-l="en">The points <code>P(lo)</code> and <code>P(hi)</code> use the same damped spiral formula (exp, cos, sin) as wrbaad (numeric difference around 1e-8). Particle position = midpoint, <code>size[1]</code> = half the distance, <code>custom_direction</code> = tail-to-head vector, with <code>lookat_direction</code> and a rotation of -90.</span></li>
+<li><span data-l="id">UV: <code>v</code> awal = (T - hi)/L, tinggi = (hi - lo)/L, jadi potongan PNG menyambung dari kepala (atas) ke ekor (bawah).</span><span data-l="en">UV: start <code>v</code> = (T - hi)/L, height = (hi - lo)/L, so the PNG slices join from head (top) to tail (bottom).</span></li>
+<li><span data-l="id">Alpha = <code>alpha * hermite_blend(clamp((1 - T/life)/fade, 0, 1))</code>. Partikel mati saat ekor sudah melewati ubinnya, atau saat <code>T = life</code>.</span><span data-l="en">Alpha = <code>alpha * hermite_blend(clamp((1 - T/life)/fade, 0, 1))</code>. A particle dies when the tail has passed its tile, or at <code>T = life</code>.</span></li></ol>
+<svg class="fig" viewBox="0 0 300 285" aria-hidden="true"><line x1="253.8" y1="238.9" x2="227.2" y2="204.4" stroke="var(--vv)" stroke-width="7" stroke-linecap="butt"/><line x1="227.2" y1="204.4" x2="197.0" y2="169.7" stroke="var(--tt)" stroke-width="7" stroke-linecap="butt"/><line x1="197.0" y1="169.7" x2="165.2" y2="137.5" stroke="var(--vv)" stroke-width="7" stroke-linecap="butt"/><line x1="165.2" y1="137.5" x2="131.9" y2="107.7" stroke="var(--tt)" stroke-width="7" stroke-linecap="butt"/><line x1="131.9" y1="107.7" x2="97.2" y2="80.4" stroke="var(--vv)" stroke-width="7" stroke-linecap="butt"/><line x1="97.2" y1="80.4" x2="61.0" y2="55.5" stroke="var(--tt)" stroke-width="7" stroke-linecap="butt"/><line x1="61.0" y1="55.5" x2="46.2" y2="46.2" stroke="var(--vv)" stroke-width="7" stroke-linecap="butt"/><circle cx="46.2" cy="46.2" r="6" fill="#fff"/><text data-l="id" x="55" y="50" class="ft">kepala</text><text data-l="en" x="55" y="50" class="ft">head</text><text data-l="id" x="263" y="243" class="ft">ekor</text><text data-l="en" x="263" y="243" class="ft">tail</text></svg><p class="cap"><span data-l="id">Tampak atas satu ribbon hasil simulasi (7 partikel); warna selang-seling = tiap partikel.</span><span data-l="en">Top view of one simulated ribbon (7 particles); alternating colors = individual particles.</span></p><svg class="fig" viewBox="0 0 544 130" aria-hidden="true"><rect x="20.0" y="40" width="34" height="34" fill="var(--panel-lo)" stroke="var(--edge)"/><text x="37" y="62" text-anchor="middle" class="ft dark">0</text><rect x="56.0" y="40" width="34" height="34" fill="var(--panel-lo)" stroke="var(--edge)"/><text x="73" y="62" text-anchor="middle" class="ft dark">1</text><rect x="92.0" y="40" width="34" height="34" fill="var(--panel-lo)" stroke="var(--edge)"/><text x="109" y="62" text-anchor="middle" class="ft dark">2</text><rect x="128.0" y="40" width="34" height="34" fill="var(--panel-lo)" stroke="var(--edge)"/><text x="145" y="62" text-anchor="middle" class="ft dark">3</text><rect x="164.0" y="40" width="34" height="34" fill="var(--panel-lo)" stroke="var(--edge)"/><rect x="164.0" y="40" width="34.0" height="34" fill="var(--vv)"/><text x="181" y="62" text-anchor="middle" class="ft dark">4</text><rect x="200.0" y="40" width="34" height="34" fill="var(--panel-lo)" stroke="var(--edge)"/><rect x="200.0" y="40" width="34.0" height="34" fill="var(--tt)"/><text x="217" y="62" text-anchor="middle" class="ft dark">5</text><rect x="236.0" y="40" width="34" height="34" fill="var(--panel-lo)" stroke="var(--edge)"/><rect x="236.0" y="40" width="34.0" height="34" fill="var(--vv)"/><text x="253" y="62" text-anchor="middle" class="ft dark">6</text><rect x="272.0" y="40" width="34" height="34" fill="var(--panel-lo)" stroke="var(--edge)"/><rect x="272.0" y="40" width="34.0" height="34" fill="var(--tt)"/><text x="289" y="62" text-anchor="middle" class="ft dark">7</text><rect x="308.0" y="40" width="34" height="34" fill="var(--panel-lo)" stroke="var(--edge)"/><rect x="308.0" y="40" width="34.0" height="34" fill="var(--vv)"/><text x="325" y="62" text-anchor="middle" class="ft dark">8</text><rect x="344.0" y="40" width="34" height="34" fill="var(--panel-lo)" stroke="var(--edge)"/><rect x="344.0" y="40" width="34.0" height="34" fill="var(--tt)"/><text x="361" y="62" text-anchor="middle" class="ft dark">9</text><rect x="380.0" y="40" width="34" height="34" fill="var(--panel-lo)" stroke="var(--edge)"/><rect x="380.0" y="40" width="14.4" height="34" fill="var(--vv)"/><text x="397" y="62" text-anchor="middle" class="ft dark">10</text><rect x="416.0" y="40" width="34" height="34" fill="var(--panel-lo)" stroke="var(--edge)"/><text x="433" y="62" text-anchor="middle" class="ft dark">11</text><rect x="452.0" y="40" width="34" height="34" fill="var(--panel-lo)" stroke="var(--edge)"/><text x="469" y="62" text-anchor="middle" class="ft dark">12</text><rect x="488.0" y="40" width="34" height="34" fill="var(--panel-lo)" stroke="var(--edge)"/><text x="505" y="62" text-anchor="middle" class="ft dark">13</text><line x1="164.0" y1="30" x2="164.0" y2="84" stroke="#fff" stroke-width="2"/><line x1="394.4" y1="30" x2="394.4" y2="84" stroke="#fff" stroke-width="2"/><text data-l="id" x="164" y="24" class="ft" text-anchor="middle">ekor T−L</text><text data-l="en" x="164" y="24" class="ft" text-anchor="middle">tail T−L</text><text data-l="id" x="394" y="24" class="ft" text-anchor="middle">kepala T</text><text data-l="en" x="394" y="24" class="ft" text-anchor="middle">head T</text><text data-l="id" x="20" y="108" class="ft">ubin j = potongan waktu kurva [j/8, (j+1)/8] detik, satu partikel per ubin</text><text data-l="en" x="20" y="108" class="ft">tile j = curve-time slice [j/8, (j+1)/8] seconds, one particle per tile</text></svg><p class="cap"><span data-l="id">Ubin waktu kurva dan jendela kepala-ekor.</span><span data-l="en">Curve-time tiles and the head-to-tail window.</span></p>
+<h3><span data-l="id">Kenapa tanpa menulis v.* dari partikel</span><span data-l="en">Why no v.* writes from the particle</span></h3><p><span data-l="id">Tidak pasti apakah variabel yang ditulis di ekspresi partikel milik satu partikel atau dibagi satu emitter. Karena itu setiap komponen menghitung ulang nilainya dengan variabel lokal <code>t.*</code>, aman untuk dua kemungkinan itu. Sprite kepala di endckw juga memakai pola ini.</span><span data-l="en">It is not certain whether a variable written inside a particle expression belongs to that particle or is shared by the emitter. So every component recomputes its values with local <code>t.*</code> variables, which is safe in both cases. The head sprite in endckw uses the same pattern.</span></p></div></div>
+<div class="tp" data-tab="code"><div class="panel"><p><span data-l="id">Isi lengkap <code>soul_ribbon.json</code> (letakkan di <code>particles/</code>). Ekspresi dipecah per titik koma untuk tampilan; Salin JSON mengambil file valid.</span><span data-l="en">The full <code>soul_ribbon.json</code> (put it in <code>particles/</code>). Expressions are broken at semicolons for display; Copy JSON takes the valid file.</span></p><div class="cw on" id="sr" data-g="sr"><div class="ch"><span>soul_ribbon.json (ribbon:soul_ribbon)</span><button class="mini copy" data-raw="raw-sr"><span data-l="id">Salin JSON</span><span data-l="en">Copy JSON</span></button></div><pre><code>{
+  &quot;format_version&quot;: &quot;1.10.0&quot;,
+  &quot;particle_effect&quot;: {
+    &quot;description&quot;: {
+      &quot;identifier&quot;: &quot;ribbon:soul_ribbon&quot;,
+      &quot;basic_render_parameters&quot;: {
+        &quot;material&quot;: &quot;particles_blend&quot;,
+        &quot;texture&quot;: &quot;textures/ribbon/warden_soul&quot;
+      }
+    },
+    &quot;components&quot;: {
+      &quot;minecraft:emitter_initialization&quot;: {
+        &quot;creation_expression&quot;: &quot;
+            v.life=Math.random(2.5,4);
+             v.rate=8;
+             v.heading=v.heading??0;
+             v.spread=50;
+             v.pitch=25;
+             v.pitch_var=12;
+             v.speed=10;
+             v.speed_var=0.15;
+             v.drag=3;
+             v.drive_h=3;
+             v.rise_vel=1;
+             v.rise_acc=1.5;
+             v.turn=35;
+             v.turn_var=0.4;
+             v.jitter=0.3;
+             v.len=1.04;
+             v.width=0.26;
+             v.alpha=0.7;
+             v.fade=0.3;
+        &quot;
+      },
+      &quot;minecraft:emitter_rate_steady&quot;: {
+        &quot;spawn_rate&quot;: &quot;v.rate&quot;,
+        &quot;max_particles&quot;: 40
+      },
+      &quot;minecraft:emitter_lifetime_expression&quot;: {
+        &quot;activation_expression&quot;: 1,
+        &quot;expiration_expression&quot;: &quot;v.emitter_age&gt;=v.life&quot;
+      },
+      &quot;minecraft:emitter_shape_point&quot;: {},
+      &quot;minecraft:particle_lifetime_expression&quot;: {
+        &quot;max_lifetime&quot;: &quot;Math.max(v.life-v.emitter_age,0.05)&quot;,
+        &quot;expiration_expression&quot;: &quot;(v.emitter_age-v.len*(0.52+0.48*v.emitter_age/v.life))&gt;=(Math.floor((v.emitter_age-v.particle_age)*v.rate+0.2)+1)/v.rate&quot;
+      },
+      &quot;minecraft:particle_initial_spin&quot;: {
+        &quot;rotation&quot;: -90
+      },
+      &quot;minecraft:particle_motion_parametric&quot;: {
+        &quot;relative_position&quot;: [
+          &quot;t.r1=v.emitter_random_1;t.r2=v.emitter_random_2;t.r3=v.emitter_random_3;t.r4=v.emitter_random_4; t.sgn=t.r2&lt;0.5?-1:1; t.w=t.sgn*Math.max(v.turn*(1+(2*t.r3-1)*v.turn_var),0.01); t.wr=t.w*3.14159265/180; t.yaw=v.heading+(t.r1-0.5)*v.spread; t.hz=Math.cos(t.yaw);t.dz=Math.sin(t.yaw); t.pit=v.pitch+(2*t.r4-1)*v.pitch_var; t.spd=v.speed*(1+(2*Math.mod(t.r1*7919,1)-1)*v.speed_var); t.u0=t.spd*Math.cos(t.pit)-v.drive_h; t.w0=t.spd*Math.sin(t.pit)-v.rise_vel; t.k2=v.drag*v.drag+t.wr*t.wr; t.ox=(Math.mod(t.r2*6271,1)-0.5)*v.jitter; t.oy=(Math.mod(t.r3*4513,1)-0.5)*0.5*v.jitter; t.T=v.emitter_age; t.L=v.len*(0.52+0.48*t.T/v.life); t.j=Math.floor((v.emitter_age-v.particle_age)*v.rate+0.2); t.a=t.j/v.rate;t.b=(t.j+1)/v.rate; t.lo=Math.max(t.a,t.T-t.L); t.hi=Math.max(Math.min(t.b,t.T),t.lo); t.e=t.lo; t.jr=Math.exp(-v.drag*t.e);t.gz=Math.cos(t.w*t.e);t.pu=Math.sin(t.w*t.e); t.lx=t.ox+v.drive_h*(1-t.gz)/t.wr+t.u0*(t.wr*(1-t.jr*t.gz)-v.drag*t.jr*t.pu)/t.k2; t.lz=v.drive_h*t.pu/t.wr+t.u0*(v.drag*(1-t.jr*t.gz)+t.wr*t.jr*t.pu)/t.k2; t.x0=t.lx*t.hz-t.lz*t.dz; t.y0=t.oy+v.rise_vel*t.e+t.w0*(1-t.jr)/v.drag+0.5*v.rise_acc*t.e*t.e; t.z0=t.lx*t.dz+t.lz*t.hz; t.e=t.hi; t.jr=Math.exp(-v.drag*t.e);t.gz=Math.cos(t.w*t.e);t.pu=Math.sin(t.w*t.e); t.lx=t.ox+v.drive_h*(1-t.gz)/t.wr+t.u0*(t.wr*(1-t.jr*t.gz)-v.drag*t.jr*t.pu)/t.k2; t.lz=v.drive_h*t.pu/t.wr+t.u0*(v.drag*(1-t.jr*t.gz)+t.wr*t.jr*t.pu)/t.k2; t.x1=t.lx*t.hz-t.lz*t.dz; t.y1=t.oy+v.rise_vel*t.e+t.w0*(1-t.jr)/v.drag+0.5*v.rise_acc*t.e*t.e; t.z1=t.lx*t.dz+t.lz*t.hz; return (t.x0+t.x1)/2;&quot;,
+          &quot;t.r1=v.emitter_random_1;t.r2=v.emitter_random_2;t.r3=v.emitter_random_3;t.r4=v.emitter_random_4; t.sgn=t.r2&lt;0.5?-1:1; t.w=t.sgn*Math.max(v.turn*(1+(2*t.r3-1)*v.turn_var),0.01); t.wr=t.w*3.14159265/180; t.yaw=v.heading+(t.r1-0.5)*v.spread; t.hz=Math.cos(t.yaw);t.dz=Math.sin(t.yaw); t.pit=v.pitch+(2*t.r4-1)*v.pitch_var; t.spd=v.speed*(1+(2*Math.mod(t.r1*7919,1)-1)*v.speed_var); t.u0=t.spd*Math.cos(t.pit)-v.drive_h; t.w0=t.spd*Math.sin(t.pit)-v.rise_vel; t.k2=v.drag*v.drag+t.wr*t.wr; t.ox=(Math.mod(t.r2*6271,1)-0.5)*v.jitter; t.oy=(Math.mod(t.r3*4513,1)-0.5)*0.5*v.jitter; t.T=v.emitter_age; t.L=v.len*(0.52+0.48*t.T/v.life); t.j=Math.floor((v.emitter_age-v.particle_age)*v.rate+0.2); t.a=t.j/v.rate;t.b=(t.j+1)/v.rate; t.lo=Math.max(t.a,t.T-t.L); t.hi=Math.max(Math.min(t.b,t.T),t.lo); t.e=t.lo; t.jr=Math.exp(-v.drag*t.e);t.gz=Math.cos(t.w*t.e);t.pu=Math.sin(t.w*t.e); t.lx=t.ox+v.drive_h*(1-t.gz)/t.wr+t.u0*(t.wr*(1-t.jr*t.gz)-v.drag*t.jr*t.pu)/t.k2; t.lz=v.drive_h*t.pu/t.wr+t.u0*(v.drag*(1-t.jr*t.gz)+t.wr*t.jr*t.pu)/t.k2; t.x0=t.lx*t.hz-t.lz*t.dz; t.y0=t.oy+v.rise_vel*t.e+t.w0*(1-t.jr)/v.drag+0.5*v.rise_acc*t.e*t.e; t.z0=t.lx*t.dz+t.lz*t.hz; t.e=t.hi; t.jr=Math.exp(-v.drag*t.e);t.gz=Math.cos(t.w*t.e);t.pu=Math.sin(t.w*t.e); t.lx=t.ox+v.drive_h*(1-t.gz)/t.wr+t.u0*(t.wr*(1-t.jr*t.gz)-v.drag*t.jr*t.pu)/t.k2; t.lz=v.drive_h*t.pu/t.wr+t.u0*(v.drag*(1-t.jr*t.gz)+t.wr*t.jr*t.pu)/t.k2; t.x1=t.lx*t.hz-t.lz*t.dz; t.y1=t.oy+v.rise_vel*t.e+t.w0*(1-t.jr)/v.drag+0.5*v.rise_acc*t.e*t.e; t.z1=t.lx*t.dz+t.lz*t.hz; return (t.y0+t.y1)/2;&quot;,
+          &quot;t.r1=v.emitter_random_1;t.r2=v.emitter_random_2;t.r3=v.emitter_random_3;t.r4=v.emitter_random_4; t.sgn=t.r2&lt;0.5?-1:1; t.w=t.sgn*Math.max(v.turn*(1+(2*t.r3-1)*v.turn_var),0.01); t.wr=t.w*3.14159265/180; t.yaw=v.heading+(t.r1-0.5)*v.spread; t.hz=Math.cos(t.yaw);t.dz=Math.sin(t.yaw); t.pit=v.pitch+(2*t.r4-1)*v.pitch_var; t.spd=v.speed*(1+(2*Math.mod(t.r1*7919,1)-1)*v.speed_var); t.u0=t.spd*Math.cos(t.pit)-v.drive_h; t.w0=t.spd*Math.sin(t.pit)-v.rise_vel; t.k2=v.drag*v.drag+t.wr*t.wr; t.ox=(Math.mod(t.r2*6271,1)-0.5)*v.jitter; t.oy=(Math.mod(t.r3*4513,1)-0.5)*0.5*v.jitter; t.T=v.emitter_age; t.L=v.len*(0.52+0.48*t.T/v.life); t.j=Math.floor((v.emitter_age-v.particle_age)*v.rate+0.2); t.a=t.j/v.rate;t.b=(t.j+1)/v.rate; t.lo=Math.max(t.a,t.T-t.L); t.hi=Math.max(Math.min(t.b,t.T),t.lo); t.e=t.lo; t.jr=Math.exp(-v.drag*t.e);t.gz=Math.cos(t.w*t.e);t.pu=Math.sin(t.w*t.e); t.lx=t.ox+v.drive_h*(1-t.gz)/t.wr+t.u0*(t.wr*(1-t.jr*t.gz)-v.drag*t.jr*t.pu)/t.k2; t.lz=v.drive_h*t.pu/t.wr+t.u0*(v.drag*(1-t.jr*t.gz)+t.wr*t.jr*t.pu)/t.k2; t.x0=t.lx*t.hz-t.lz*t.dz; t.y0=t.oy+v.rise_vel*t.e+t.w0*(1-t.jr)/v.drag+0.5*v.rise_acc*t.e*t.e; t.z0=t.lx*t.dz+t.lz*t.hz; t.e=t.hi; t.jr=Math.exp(-v.drag*t.e);t.gz=Math.cos(t.w*t.e);t.pu=Math.sin(t.w*t.e); t.lx=t.ox+v.drive_h*(1-t.gz)/t.wr+t.u0*(t.wr*(1-t.jr*t.gz)-v.drag*t.jr*t.pu)/t.k2; t.lz=v.drive_h*t.pu/t.wr+t.u0*(v.drag*(1-t.jr*t.gz)+t.wr*t.jr*t.pu)/t.k2; t.x1=t.lx*t.hz-t.lz*t.dz; t.y1=t.oy+v.rise_vel*t.e+t.w0*(1-t.jr)/v.drag+0.5*v.rise_acc*t.e*t.e; t.z1=t.lx*t.dz+t.lz*t.hz; return (t.z0+t.z1)/2;&quot;
+        ]
+      },
+      &quot;minecraft:particle_appearance_billboard&quot;: {
+        &quot;size&quot;: [
+          &quot;t.r1=v.emitter_random_1;t.r2=v.emitter_random_2;t.r3=v.emitter_random_3;t.r4=v.emitter_random_4;t.a=Math.floor((v.emitter_age-v.particle_age)*v.rate+0.2)/v.rate;return v.width*(0.52+0.48*t.a/v.life);&quot;,
+          &quot;t.r1=v.emitter_random_1;t.r2=v.emitter_random_2;t.r3=v.emitter_random_3;t.r4=v.emitter_random_4; t.sgn=t.r2&lt;0.5?-1:1; t.w=t.sgn*Math.max(v.turn*(1+(2*t.r3-1)*v.turn_var),0.01); t.wr=t.w*3.14159265/180; t.yaw=v.heading+(t.r1-0.5)*v.spread; t.hz=Math.cos(t.yaw);t.dz=Math.sin(t.yaw); t.pit=v.pitch+(2*t.r4-1)*v.pitch_var; t.spd=v.speed*(1+(2*Math.mod(t.r1*7919,1)-1)*v.speed_var); t.u0=t.spd*Math.cos(t.pit)-v.drive_h; t.w0=t.spd*Math.sin(t.pit)-v.rise_vel; t.k2=v.drag*v.drag+t.wr*t.wr; t.ox=(Math.mod(t.r2*6271,1)-0.5)*v.jitter; t.oy=(Math.mod(t.r3*4513,1)-0.5)*0.5*v.jitter; t.T=v.emitter_age; t.L=v.len*(0.52+0.48*t.T/v.life); t.j=Math.floor((v.emitter_age-v.particle_age)*v.rate+0.2); t.a=t.j/v.rate;t.b=(t.j+1)/v.rate; t.lo=Math.max(t.a,t.T-t.L); t.hi=Math.max(Math.min(t.b,t.T),t.lo); t.e=t.lo; t.jr=Math.exp(-v.drag*t.e);t.gz=Math.cos(t.w*t.e);t.pu=Math.sin(t.w*t.e); t.lx=t.ox+v.drive_h*(1-t.gz)/t.wr+t.u0*(t.wr*(1-t.jr*t.gz)-v.drag*t.jr*t.pu)/t.k2; t.lz=v.drive_h*t.pu/t.wr+t.u0*(v.drag*(1-t.jr*t.gz)+t.wr*t.jr*t.pu)/t.k2; t.x0=t.lx*t.hz-t.lz*t.dz; t.y0=t.oy+v.rise_vel*t.e+t.w0*(1-t.jr)/v.drag+0.5*v.rise_acc*t.e*t.e; t.z0=t.lx*t.dz+t.lz*t.hz; t.e=t.hi; t.jr=Math.exp(-v.drag*t.e);t.gz=Math.cos(t.w*t.e);t.pu=Math.sin(t.w*t.e); t.lx=t.ox+v.drive_h*(1-t.gz)/t.wr+t.u0*(t.wr*(1-t.jr*t.gz)-v.drag*t.jr*t.pu)/t.k2; t.lz=v.drive_h*t.pu/t.wr+t.u0*(v.drag*(1-t.jr*t.gz)+t.wr*t.jr*t.pu)/t.k2; t.x1=t.lx*t.hz-t.lz*t.dz; t.y1=t.oy+v.rise_vel*t.e+t.w0*(1-t.jr)/v.drag+0.5*v.rise_acc*t.e*t.e; t.z1=t.lx*t.dz+t.lz*t.hz; return 0.5*Math.sqrt((t.x1-t.x0)*(t.x1-t.x0)+(t.y1-t.y0)*(t.y1-t.y0)+(t.z1-t.z0)*(t.z1-t.z0));&quot;
+        ],
+        &quot;facing_camera_mode&quot;: &quot;lookat_direction&quot;,
+        &quot;direction&quot;: {
+          &quot;mode&quot;: &quot;custom&quot;,
+          &quot;custom_direction&quot;: [
+            &quot;t.r1=v.emitter_random_1;t.r2=v.emitter_random_2;t.r3=v.emitter_random_3;t.r4=v.emitter_random_4; t.sgn=t.r2&lt;0.5?-1:1; t.w=t.sgn*Math.max(v.turn*(1+(2*t.r3-1)*v.turn_var),0.01); t.wr=t.w*3.14159265/180; t.yaw=v.heading+(t.r1-0.5)*v.spread; t.hz=Math.cos(t.yaw);t.dz=Math.sin(t.yaw); t.pit=v.pitch+(2*t.r4-1)*v.pitch_var; t.spd=v.speed*(1+(2*Math.mod(t.r1*7919,1)-1)*v.speed_var); t.u0=t.spd*Math.cos(t.pit)-v.drive_h; t.w0=t.spd*Math.sin(t.pit)-v.rise_vel; t.k2=v.drag*v.drag+t.wr*t.wr; t.ox=(Math.mod(t.r2*6271,1)-0.5)*v.jitter; t.oy=(Math.mod(t.r3*4513,1)-0.5)*0.5*v.jitter; t.T=v.emitter_age; t.L=v.len*(0.52+0.48*t.T/v.life); t.j=Math.floor((v.emitter_age-v.particle_age)*v.rate+0.2); t.a=t.j/v.rate;t.b=(t.j+1)/v.rate; t.lo=Math.max(t.a,t.T-t.L); t.hi=Math.max(Math.min(t.b,t.T),t.lo); t.e=t.lo; t.jr=Math.exp(-v.drag*t.e);t.gz=Math.cos(t.w*t.e);t.pu=Math.sin(t.w*t.e); t.lx=t.ox+v.drive_h*(1-t.gz)/t.wr+t.u0*(t.wr*(1-t.jr*t.gz)-v.drag*t.jr*t.pu)/t.k2; t.lz=v.drive_h*t.pu/t.wr+t.u0*(v.drag*(1-t.jr*t.gz)+t.wr*t.jr*t.pu)/t.k2; t.x0=t.lx*t.hz-t.lz*t.dz; t.y0=t.oy+v.rise_vel*t.e+t.w0*(1-t.jr)/v.drag+0.5*v.rise_acc*t.e*t.e; t.z0=t.lx*t.dz+t.lz*t.hz; t.e=t.hi; t.jr=Math.exp(-v.drag*t.e);t.gz=Math.cos(t.w*t.e);t.pu=Math.sin(t.w*t.e); t.lx=t.ox+v.drive_h*(1-t.gz)/t.wr+t.u0*(t.wr*(1-t.jr*t.gz)-v.drag*t.jr*t.pu)/t.k2; t.lz=v.drive_h*t.pu/t.wr+t.u0*(v.drag*(1-t.jr*t.gz)+t.wr*t.jr*t.pu)/t.k2; t.x1=t.lx*t.hz-t.lz*t.dz; t.y1=t.oy+v.rise_vel*t.e+t.w0*(1-t.jr)/v.drag+0.5*v.rise_acc*t.e*t.e; t.z1=t.lx*t.dz+t.lz*t.hz; t.d=Math.max(Math.sqrt((t.x1-t.x0)*(t.x1-t.x0)+(t.y1-t.y0)*(t.y1-t.y0)+(t.z1-t.z0)*(t.z1-t.z0)),0.0001);return (t.x1-t.x0)/t.d;&quot;,
+            &quot;t.r1=v.emitter_random_1;t.r2=v.emitter_random_2;t.r3=v.emitter_random_3;t.r4=v.emitter_random_4; t.sgn=t.r2&lt;0.5?-1:1; t.w=t.sgn*Math.max(v.turn*(1+(2*t.r3-1)*v.turn_var),0.01); t.wr=t.w*3.14159265/180; t.yaw=v.heading+(t.r1-0.5)*v.spread; t.hz=Math.cos(t.yaw);t.dz=Math.sin(t.yaw); t.pit=v.pitch+(2*t.r4-1)*v.pitch_var; t.spd=v.speed*(1+(2*Math.mod(t.r1*7919,1)-1)*v.speed_var); t.u0=t.spd*Math.cos(t.pit)-v.drive_h; t.w0=t.spd*Math.sin(t.pit)-v.rise_vel; t.k2=v.drag*v.drag+t.wr*t.wr; t.ox=(Math.mod(t.r2*6271,1)-0.5)*v.jitter; t.oy=(Math.mod(t.r3*4513,1)-0.5)*0.5*v.jitter; t.T=v.emitter_age; t.L=v.len*(0.52+0.48*t.T/v.life); t.j=Math.floor((v.emitter_age-v.particle_age)*v.rate+0.2); t.a=t.j/v.rate;t.b=(t.j+1)/v.rate; t.lo=Math.max(t.a,t.T-t.L); t.hi=Math.max(Math.min(t.b,t.T),t.lo); t.e=t.lo; t.jr=Math.exp(-v.drag*t.e);t.gz=Math.cos(t.w*t.e);t.pu=Math.sin(t.w*t.e); t.lx=t.ox+v.drive_h*(1-t.gz)/t.wr+t.u0*(t.wr*(1-t.jr*t.gz)-v.drag*t.jr*t.pu)/t.k2; t.lz=v.drive_h*t.pu/t.wr+t.u0*(v.drag*(1-t.jr*t.gz)+t.wr*t.jr*t.pu)/t.k2; t.x0=t.lx*t.hz-t.lz*t.dz; t.y0=t.oy+v.rise_vel*t.e+t.w0*(1-t.jr)/v.drag+0.5*v.rise_acc*t.e*t.e; t.z0=t.lx*t.dz+t.lz*t.hz; t.e=t.hi; t.jr=Math.exp(-v.drag*t.e);t.gz=Math.cos(t.w*t.e);t.pu=Math.sin(t.w*t.e); t.lx=t.ox+v.drive_h*(1-t.gz)/t.wr+t.u0*(t.wr*(1-t.jr*t.gz)-v.drag*t.jr*t.pu)/t.k2; t.lz=v.drive_h*t.pu/t.wr+t.u0*(v.drag*(1-t.jr*t.gz)+t.wr*t.jr*t.pu)/t.k2; t.x1=t.lx*t.hz-t.lz*t.dz; t.y1=t.oy+v.rise_vel*t.e+t.w0*(1-t.jr)/v.drag+0.5*v.rise_acc*t.e*t.e; t.z1=t.lx*t.dz+t.lz*t.hz; t.d=Math.max(Math.sqrt((t.x1-t.x0)*(t.x1-t.x0)+(t.y1-t.y0)*(t.y1-t.y0)+(t.z1-t.z0)*(t.z1-t.z0)),0.0001);return (t.y1-t.y0)/t.d;&quot;,
+            &quot;t.r1=v.emitter_random_1;t.r2=v.emitter_random_2;t.r3=v.emitter_random_3;t.r4=v.emitter_random_4; t.sgn=t.r2&lt;0.5?-1:1; t.w=t.sgn*Math.max(v.turn*(1+(2*t.r3-1)*v.turn_var),0.01); t.wr=t.w*3.14159265/180; t.yaw=v.heading+(t.r1-0.5)*v.spread; t.hz=Math.cos(t.yaw);t.dz=Math.sin(t.yaw); t.pit=v.pitch+(2*t.r4-1)*v.pitch_var; t.spd=v.speed*(1+(2*Math.mod(t.r1*7919,1)-1)*v.speed_var); t.u0=t.spd*Math.cos(t.pit)-v.drive_h; t.w0=t.spd*Math.sin(t.pit)-v.rise_vel; t.k2=v.drag*v.drag+t.wr*t.wr; t.ox=(Math.mod(t.r2*6271,1)-0.5)*v.jitter; t.oy=(Math.mod(t.r3*4513,1)-0.5)*0.5*v.jitter; t.T=v.emitter_age; t.L=v.len*(0.52+0.48*t.T/v.life); t.j=Math.floor((v.emitter_age-v.particle_age)*v.rate+0.2); t.a=t.j/v.rate;t.b=(t.j+1)/v.rate; t.lo=Math.max(t.a,t.T-t.L); t.hi=Math.max(Math.min(t.b,t.T),t.lo); t.e=t.lo; t.jr=Math.exp(-v.drag*t.e);t.gz=Math.cos(t.w*t.e);t.pu=Math.sin(t.w*t.e); t.lx=t.ox+v.drive_h*(1-t.gz)/t.wr+t.u0*(t.wr*(1-t.jr*t.gz)-v.drag*t.jr*t.pu)/t.k2; t.lz=v.drive_h*t.pu/t.wr+t.u0*(v.drag*(1-t.jr*t.gz)+t.wr*t.jr*t.pu)/t.k2; t.x0=t.lx*t.hz-t.lz*t.dz; t.y0=t.oy+v.rise_vel*t.e+t.w0*(1-t.jr)/v.drag+0.5*v.rise_acc*t.e*t.e; t.z0=t.lx*t.dz+t.lz*t.hz; t.e=t.hi; t.jr=Math.exp(-v.drag*t.e);t.gz=Math.cos(t.w*t.e);t.pu=Math.sin(t.w*t.e); t.lx=t.ox+v.drive_h*(1-t.gz)/t.wr+t.u0*(t.wr*(1-t.jr*t.gz)-v.drag*t.jr*t.pu)/t.k2; t.lz=v.drive_h*t.pu/t.wr+t.u0*(v.drag*(1-t.jr*t.gz)+t.wr*t.jr*t.pu)/t.k2; t.x1=t.lx*t.hz-t.lz*t.dz; t.y1=t.oy+v.rise_vel*t.e+t.w0*(1-t.jr)/v.drag+0.5*v.rise_acc*t.e*t.e; t.z1=t.lx*t.dz+t.lz*t.hz; t.d=Math.max(Math.sqrt((t.x1-t.x0)*(t.x1-t.x0)+(t.y1-t.y0)*(t.y1-t.y0)+(t.z1-t.z0)*(t.z1-t.z0)),0.0001);return (t.z1-t.z0)/t.d;&quot;
+          ]
+        },
+        &quot;uv&quot;: {
+          &quot;texture_width&quot;: 1,
+          &quot;texture_height&quot;: 1,
+          &quot;uv&quot;: [
+            0,
+            &quot;t.T=v.emitter_age; t.L=v.len*(0.52+0.48*t.T/v.life); t.j=Math.floor((v.emitter_age-v.particle_age)*v.rate+0.2); t.a=t.j/v.rate;t.b=(t.j+1)/v.rate; t.lo=Math.max(t.a,t.T-t.L); t.hi=Math.max(Math.min(t.b,t.T),t.lo);return (t.T-t.hi)/t.L;&quot;
+          ],
+          &quot;uv_size&quot;: [
+            1,
+            &quot;t.T=v.emitter_age; t.L=v.len*(0.52+0.48*t.T/v.life); t.j=Math.floor((v.emitter_age-v.particle_age)*v.rate+0.2); t.a=t.j/v.rate;t.b=(t.j+1)/v.rate; t.lo=Math.max(t.a,t.T-t.L); t.hi=Math.max(Math.min(t.b,t.T),t.lo);return (t.hi-t.lo)/t.L;&quot;
+          ]
+        }
+      },
+      &quot;minecraft:particle_appearance_tinting&quot;: {
+        &quot;color&quot;: [
+          1,
+          1,
+          1,
+          &quot;v.alpha*Math.hermite_blend(Math.clamp((1-v.emitter_age/v.life)/v.fade,0,1))&quot;
+        ]
+      }
+    }
+  }
+}</code></pre><script type="text/plain" id="raw-sr">{
+  "format_version": "1.10.0",
+  "particle_effect": {
+    "description": {
+      "identifier": "ribbon:soul_ribbon",
+      "basic_render_parameters": {
+        "material": "particles_blend",
+        "texture": "textures/ribbon/warden_soul"
+      }
+    },
+    "components": {
+      "minecraft:emitter_initialization": {
+        "creation_expression": "v.life=Math.random(2.5,4); v.rate=8; v.heading=v.heading??0; v.spread=50; v.pitch=25; v.pitch_var=12; v.speed=10; v.speed_var=0.15; v.drag=3; v.drive_h=3; v.rise_vel=1; v.rise_acc=1.5; v.turn=35; v.turn_var=0.4; v.jitter=0.3; v.len=1.04; v.width=0.26; v.alpha=0.7; v.fade=0.3;"
+      },
+      "minecraft:emitter_rate_steady": {
+        "spawn_rate": "v.rate",
+        "max_particles": 40
+      },
+      "minecraft:emitter_lifetime_expression": {
+        "activation_expression": 1,
+        "expiration_expression": "v.emitter_age>=v.life"
+      },
+      "minecraft:emitter_shape_point": {},
+      "minecraft:particle_lifetime_expression": {
+        "max_lifetime": "Math.max(v.life-v.emitter_age,0.05)",
+        "expiration_expression": "(v.emitter_age-v.len*(0.52+0.48*v.emitter_age/v.life))>=(Math.floor((v.emitter_age-v.particle_age)*v.rate+0.2)+1)/v.rate"
+      },
+      "minecraft:particle_initial_spin": {
+        "rotation": -90
+      },
+      "minecraft:particle_motion_parametric": {
+        "relative_position": [
+          "t.r1=v.emitter_random_1;t.r2=v.emitter_random_2;t.r3=v.emitter_random_3;t.r4=v.emitter_random_4; t.sgn=t.r2<0.5?-1:1; t.w=t.sgn*Math.max(v.turn*(1+(2*t.r3-1)*v.turn_var),0.01); t.wr=t.w*3.14159265/180; t.yaw=v.heading+(t.r1-0.5)*v.spread; t.hz=Math.cos(t.yaw);t.dz=Math.sin(t.yaw); t.pit=v.pitch+(2*t.r4-1)*v.pitch_var; t.spd=v.speed*(1+(2*Math.mod(t.r1*7919,1)-1)*v.speed_var); t.u0=t.spd*Math.cos(t.pit)-v.drive_h; t.w0=t.spd*Math.sin(t.pit)-v.rise_vel; t.k2=v.drag*v.drag+t.wr*t.wr; t.ox=(Math.mod(t.r2*6271,1)-0.5)*v.jitter; t.oy=(Math.mod(t.r3*4513,1)-0.5)*0.5*v.jitter; t.T=v.emitter_age; t.L=v.len*(0.52+0.48*t.T/v.life); t.j=Math.floor((v.emitter_age-v.particle_age)*v.rate+0.2); t.a=t.j/v.rate;t.b=(t.j+1)/v.rate; t.lo=Math.max(t.a,t.T-t.L); t.hi=Math.max(Math.min(t.b,t.T),t.lo); t.e=t.lo; t.jr=Math.exp(-v.drag*t.e);t.gz=Math.cos(t.w*t.e);t.pu=Math.sin(t.w*t.e); t.lx=t.ox+v.drive_h*(1-t.gz)/t.wr+t.u0*(t.wr*(1-t.jr*t.gz)-v.drag*t.jr*t.pu)/t.k2; t.lz=v.drive_h*t.pu/t.wr+t.u0*(v.drag*(1-t.jr*t.gz)+t.wr*t.jr*t.pu)/t.k2; t.x0=t.lx*t.hz-t.lz*t.dz; t.y0=t.oy+v.rise_vel*t.e+t.w0*(1-t.jr)/v.drag+0.5*v.rise_acc*t.e*t.e; t.z0=t.lx*t.dz+t.lz*t.hz; t.e=t.hi; t.jr=Math.exp(-v.drag*t.e);t.gz=Math.cos(t.w*t.e);t.pu=Math.sin(t.w*t.e); t.lx=t.ox+v.drive_h*(1-t.gz)/t.wr+t.u0*(t.wr*(1-t.jr*t.gz)-v.drag*t.jr*t.pu)/t.k2; t.lz=v.drive_h*t.pu/t.wr+t.u0*(v.drag*(1-t.jr*t.gz)+t.wr*t.jr*t.pu)/t.k2; t.x1=t.lx*t.hz-t.lz*t.dz; t.y1=t.oy+v.rise_vel*t.e+t.w0*(1-t.jr)/v.drag+0.5*v.rise_acc*t.e*t.e; t.z1=t.lx*t.dz+t.lz*t.hz; return (t.x0+t.x1)/2;",
+          "t.r1=v.emitter_random_1;t.r2=v.emitter_random_2;t.r3=v.emitter_random_3;t.r4=v.emitter_random_4; t.sgn=t.r2<0.5?-1:1; t.w=t.sgn*Math.max(v.turn*(1+(2*t.r3-1)*v.turn_var),0.01); t.wr=t.w*3.14159265/180; t.yaw=v.heading+(t.r1-0.5)*v.spread; t.hz=Math.cos(t.yaw);t.dz=Math.sin(t.yaw); t.pit=v.pitch+(2*t.r4-1)*v.pitch_var; t.spd=v.speed*(1+(2*Math.mod(t.r1*7919,1)-1)*v.speed_var); t.u0=t.spd*Math.cos(t.pit)-v.drive_h; t.w0=t.spd*Math.sin(t.pit)-v.rise_vel; t.k2=v.drag*v.drag+t.wr*t.wr; t.ox=(Math.mod(t.r2*6271,1)-0.5)*v.jitter; t.oy=(Math.mod(t.r3*4513,1)-0.5)*0.5*v.jitter; t.T=v.emitter_age; t.L=v.len*(0.52+0.48*t.T/v.life); t.j=Math.floor((v.emitter_age-v.particle_age)*v.rate+0.2); t.a=t.j/v.rate;t.b=(t.j+1)/v.rate; t.lo=Math.max(t.a,t.T-t.L); t.hi=Math.max(Math.min(t.b,t.T),t.lo); t.e=t.lo; t.jr=Math.exp(-v.drag*t.e);t.gz=Math.cos(t.w*t.e);t.pu=Math.sin(t.w*t.e); t.lx=t.ox+v.drive_h*(1-t.gz)/t.wr+t.u0*(t.wr*(1-t.jr*t.gz)-v.drag*t.jr*t.pu)/t.k2; t.lz=v.drive_h*t.pu/t.wr+t.u0*(v.drag*(1-t.jr*t.gz)+t.wr*t.jr*t.pu)/t.k2; t.x0=t.lx*t.hz-t.lz*t.dz; t.y0=t.oy+v.rise_vel*t.e+t.w0*(1-t.jr)/v.drag+0.5*v.rise_acc*t.e*t.e; t.z0=t.lx*t.dz+t.lz*t.hz; t.e=t.hi; t.jr=Math.exp(-v.drag*t.e);t.gz=Math.cos(t.w*t.e);t.pu=Math.sin(t.w*t.e); t.lx=t.ox+v.drive_h*(1-t.gz)/t.wr+t.u0*(t.wr*(1-t.jr*t.gz)-v.drag*t.jr*t.pu)/t.k2; t.lz=v.drive_h*t.pu/t.wr+t.u0*(v.drag*(1-t.jr*t.gz)+t.wr*t.jr*t.pu)/t.k2; t.x1=t.lx*t.hz-t.lz*t.dz; t.y1=t.oy+v.rise_vel*t.e+t.w0*(1-t.jr)/v.drag+0.5*v.rise_acc*t.e*t.e; t.z1=t.lx*t.dz+t.lz*t.hz; return (t.y0+t.y1)/2;",
+          "t.r1=v.emitter_random_1;t.r2=v.emitter_random_2;t.r3=v.emitter_random_3;t.r4=v.emitter_random_4; t.sgn=t.r2<0.5?-1:1; t.w=t.sgn*Math.max(v.turn*(1+(2*t.r3-1)*v.turn_var),0.01); t.wr=t.w*3.14159265/180; t.yaw=v.heading+(t.r1-0.5)*v.spread; t.hz=Math.cos(t.yaw);t.dz=Math.sin(t.yaw); t.pit=v.pitch+(2*t.r4-1)*v.pitch_var; t.spd=v.speed*(1+(2*Math.mod(t.r1*7919,1)-1)*v.speed_var); t.u0=t.spd*Math.cos(t.pit)-v.drive_h; t.w0=t.spd*Math.sin(t.pit)-v.rise_vel; t.k2=v.drag*v.drag+t.wr*t.wr; t.ox=(Math.mod(t.r2*6271,1)-0.5)*v.jitter; t.oy=(Math.mod(t.r3*4513,1)-0.5)*0.5*v.jitter; t.T=v.emitter_age; t.L=v.len*(0.52+0.48*t.T/v.life); t.j=Math.floor((v.emitter_age-v.particle_age)*v.rate+0.2); t.a=t.j/v.rate;t.b=(t.j+1)/v.rate; t.lo=Math.max(t.a,t.T-t.L); t.hi=Math.max(Math.min(t.b,t.T),t.lo); t.e=t.lo; t.jr=Math.exp(-v.drag*t.e);t.gz=Math.cos(t.w*t.e);t.pu=Math.sin(t.w*t.e); t.lx=t.ox+v.drive_h*(1-t.gz)/t.wr+t.u0*(t.wr*(1-t.jr*t.gz)-v.drag*t.jr*t.pu)/t.k2; t.lz=v.drive_h*t.pu/t.wr+t.u0*(v.drag*(1-t.jr*t.gz)+t.wr*t.jr*t.pu)/t.k2; t.x0=t.lx*t.hz-t.lz*t.dz; t.y0=t.oy+v.rise_vel*t.e+t.w0*(1-t.jr)/v.drag+0.5*v.rise_acc*t.e*t.e; t.z0=t.lx*t.dz+t.lz*t.hz; t.e=t.hi; t.jr=Math.exp(-v.drag*t.e);t.gz=Math.cos(t.w*t.e);t.pu=Math.sin(t.w*t.e); t.lx=t.ox+v.drive_h*(1-t.gz)/t.wr+t.u0*(t.wr*(1-t.jr*t.gz)-v.drag*t.jr*t.pu)/t.k2; t.lz=v.drive_h*t.pu/t.wr+t.u0*(v.drag*(1-t.jr*t.gz)+t.wr*t.jr*t.pu)/t.k2; t.x1=t.lx*t.hz-t.lz*t.dz; t.y1=t.oy+v.rise_vel*t.e+t.w0*(1-t.jr)/v.drag+0.5*v.rise_acc*t.e*t.e; t.z1=t.lx*t.dz+t.lz*t.hz; return (t.z0+t.z1)/2;"
+        ]
+      },
+      "minecraft:particle_appearance_billboard": {
+        "size": [
+          "t.r1=v.emitter_random_1;t.r2=v.emitter_random_2;t.r3=v.emitter_random_3;t.r4=v.emitter_random_4;t.a=Math.floor((v.emitter_age-v.particle_age)*v.rate+0.2)/v.rate;return v.width*(0.52+0.48*t.a/v.life);",
+          "t.r1=v.emitter_random_1;t.r2=v.emitter_random_2;t.r3=v.emitter_random_3;t.r4=v.emitter_random_4; t.sgn=t.r2<0.5?-1:1; t.w=t.sgn*Math.max(v.turn*(1+(2*t.r3-1)*v.turn_var),0.01); t.wr=t.w*3.14159265/180; t.yaw=v.heading+(t.r1-0.5)*v.spread; t.hz=Math.cos(t.yaw);t.dz=Math.sin(t.yaw); t.pit=v.pitch+(2*t.r4-1)*v.pitch_var; t.spd=v.speed*(1+(2*Math.mod(t.r1*7919,1)-1)*v.speed_var); t.u0=t.spd*Math.cos(t.pit)-v.drive_h; t.w0=t.spd*Math.sin(t.pit)-v.rise_vel; t.k2=v.drag*v.drag+t.wr*t.wr; t.ox=(Math.mod(t.r2*6271,1)-0.5)*v.jitter; t.oy=(Math.mod(t.r3*4513,1)-0.5)*0.5*v.jitter; t.T=v.emitter_age; t.L=v.len*(0.52+0.48*t.T/v.life); t.j=Math.floor((v.emitter_age-v.particle_age)*v.rate+0.2); t.a=t.j/v.rate;t.b=(t.j+1)/v.rate; t.lo=Math.max(t.a,t.T-t.L); t.hi=Math.max(Math.min(t.b,t.T),t.lo); t.e=t.lo; t.jr=Math.exp(-v.drag*t.e);t.gz=Math.cos(t.w*t.e);t.pu=Math.sin(t.w*t.e); t.lx=t.ox+v.drive_h*(1-t.gz)/t.wr+t.u0*(t.wr*(1-t.jr*t.gz)-v.drag*t.jr*t.pu)/t.k2; t.lz=v.drive_h*t.pu/t.wr+t.u0*(v.drag*(1-t.jr*t.gz)+t.wr*t.jr*t.pu)/t.k2; t.x0=t.lx*t.hz-t.lz*t.dz; t.y0=t.oy+v.rise_vel*t.e+t.w0*(1-t.jr)/v.drag+0.5*v.rise_acc*t.e*t.e; t.z0=t.lx*t.dz+t.lz*t.hz; t.e=t.hi; t.jr=Math.exp(-v.drag*t.e);t.gz=Math.cos(t.w*t.e);t.pu=Math.sin(t.w*t.e); t.lx=t.ox+v.drive_h*(1-t.gz)/t.wr+t.u0*(t.wr*(1-t.jr*t.gz)-v.drag*t.jr*t.pu)/t.k2; t.lz=v.drive_h*t.pu/t.wr+t.u0*(v.drag*(1-t.jr*t.gz)+t.wr*t.jr*t.pu)/t.k2; t.x1=t.lx*t.hz-t.lz*t.dz; t.y1=t.oy+v.rise_vel*t.e+t.w0*(1-t.jr)/v.drag+0.5*v.rise_acc*t.e*t.e; t.z1=t.lx*t.dz+t.lz*t.hz; return 0.5*Math.sqrt((t.x1-t.x0)*(t.x1-t.x0)+(t.y1-t.y0)*(t.y1-t.y0)+(t.z1-t.z0)*(t.z1-t.z0));"
+        ],
+        "facing_camera_mode": "lookat_direction",
+        "direction": {
+          "mode": "custom",
+          "custom_direction": [
+            "t.r1=v.emitter_random_1;t.r2=v.emitter_random_2;t.r3=v.emitter_random_3;t.r4=v.emitter_random_4; t.sgn=t.r2<0.5?-1:1; t.w=t.sgn*Math.max(v.turn*(1+(2*t.r3-1)*v.turn_var),0.01); t.wr=t.w*3.14159265/180; t.yaw=v.heading+(t.r1-0.5)*v.spread; t.hz=Math.cos(t.yaw);t.dz=Math.sin(t.yaw); t.pit=v.pitch+(2*t.r4-1)*v.pitch_var; t.spd=v.speed*(1+(2*Math.mod(t.r1*7919,1)-1)*v.speed_var); t.u0=t.spd*Math.cos(t.pit)-v.drive_h; t.w0=t.spd*Math.sin(t.pit)-v.rise_vel; t.k2=v.drag*v.drag+t.wr*t.wr; t.ox=(Math.mod(t.r2*6271,1)-0.5)*v.jitter; t.oy=(Math.mod(t.r3*4513,1)-0.5)*0.5*v.jitter; t.T=v.emitter_age; t.L=v.len*(0.52+0.48*t.T/v.life); t.j=Math.floor((v.emitter_age-v.particle_age)*v.rate+0.2); t.a=t.j/v.rate;t.b=(t.j+1)/v.rate; t.lo=Math.max(t.a,t.T-t.L); t.hi=Math.max(Math.min(t.b,t.T),t.lo); t.e=t.lo; t.jr=Math.exp(-v.drag*t.e);t.gz=Math.cos(t.w*t.e);t.pu=Math.sin(t.w*t.e); t.lx=t.ox+v.drive_h*(1-t.gz)/t.wr+t.u0*(t.wr*(1-t.jr*t.gz)-v.drag*t.jr*t.pu)/t.k2; t.lz=v.drive_h*t.pu/t.wr+t.u0*(v.drag*(1-t.jr*t.gz)+t.wr*t.jr*t.pu)/t.k2; t.x0=t.lx*t.hz-t.lz*t.dz; t.y0=t.oy+v.rise_vel*t.e+t.w0*(1-t.jr)/v.drag+0.5*v.rise_acc*t.e*t.e; t.z0=t.lx*t.dz+t.lz*t.hz; t.e=t.hi; t.jr=Math.exp(-v.drag*t.e);t.gz=Math.cos(t.w*t.e);t.pu=Math.sin(t.w*t.e); t.lx=t.ox+v.drive_h*(1-t.gz)/t.wr+t.u0*(t.wr*(1-t.jr*t.gz)-v.drag*t.jr*t.pu)/t.k2; t.lz=v.drive_h*t.pu/t.wr+t.u0*(v.drag*(1-t.jr*t.gz)+t.wr*t.jr*t.pu)/t.k2; t.x1=t.lx*t.hz-t.lz*t.dz; t.y1=t.oy+v.rise_vel*t.e+t.w0*(1-t.jr)/v.drag+0.5*v.rise_acc*t.e*t.e; t.z1=t.lx*t.dz+t.lz*t.hz; t.d=Math.max(Math.sqrt((t.x1-t.x0)*(t.x1-t.x0)+(t.y1-t.y0)*(t.y1-t.y0)+(t.z1-t.z0)*(t.z1-t.z0)),0.0001);return (t.x1-t.x0)/t.d;",
+            "t.r1=v.emitter_random_1;t.r2=v.emitter_random_2;t.r3=v.emitter_random_3;t.r4=v.emitter_random_4; t.sgn=t.r2<0.5?-1:1; t.w=t.sgn*Math.max(v.turn*(1+(2*t.r3-1)*v.turn_var),0.01); t.wr=t.w*3.14159265/180; t.yaw=v.heading+(t.r1-0.5)*v.spread; t.hz=Math.cos(t.yaw);t.dz=Math.sin(t.yaw); t.pit=v.pitch+(2*t.r4-1)*v.pitch_var; t.spd=v.speed*(1+(2*Math.mod(t.r1*7919,1)-1)*v.speed_var); t.u0=t.spd*Math.cos(t.pit)-v.drive_h; t.w0=t.spd*Math.sin(t.pit)-v.rise_vel; t.k2=v.drag*v.drag+t.wr*t.wr; t.ox=(Math.mod(t.r2*6271,1)-0.5)*v.jitter; t.oy=(Math.mod(t.r3*4513,1)-0.5)*0.5*v.jitter; t.T=v.emitter_age; t.L=v.len*(0.52+0.48*t.T/v.life); t.j=Math.floor((v.emitter_age-v.particle_age)*v.rate+0.2); t.a=t.j/v.rate;t.b=(t.j+1)/v.rate; t.lo=Math.max(t.a,t.T-t.L); t.hi=Math.max(Math.min(t.b,t.T),t.lo); t.e=t.lo; t.jr=Math.exp(-v.drag*t.e);t.gz=Math.cos(t.w*t.e);t.pu=Math.sin(t.w*t.e); t.lx=t.ox+v.drive_h*(1-t.gz)/t.wr+t.u0*(t.wr*(1-t.jr*t.gz)-v.drag*t.jr*t.pu)/t.k2; t.lz=v.drive_h*t.pu/t.wr+t.u0*(v.drag*(1-t.jr*t.gz)+t.wr*t.jr*t.pu)/t.k2; t.x0=t.lx*t.hz-t.lz*t.dz; t.y0=t.oy+v.rise_vel*t.e+t.w0*(1-t.jr)/v.drag+0.5*v.rise_acc*t.e*t.e; t.z0=t.lx*t.dz+t.lz*t.hz; t.e=t.hi; t.jr=Math.exp(-v.drag*t.e);t.gz=Math.cos(t.w*t.e);t.pu=Math.sin(t.w*t.e); t.lx=t.ox+v.drive_h*(1-t.gz)/t.wr+t.u0*(t.wr*(1-t.jr*t.gz)-v.drag*t.jr*t.pu)/t.k2; t.lz=v.drive_h*t.pu/t.wr+t.u0*(v.drag*(1-t.jr*t.gz)+t.wr*t.jr*t.pu)/t.k2; t.x1=t.lx*t.hz-t.lz*t.dz; t.y1=t.oy+v.rise_vel*t.e+t.w0*(1-t.jr)/v.drag+0.5*v.rise_acc*t.e*t.e; t.z1=t.lx*t.dz+t.lz*t.hz; t.d=Math.max(Math.sqrt((t.x1-t.x0)*(t.x1-t.x0)+(t.y1-t.y0)*(t.y1-t.y0)+(t.z1-t.z0)*(t.z1-t.z0)),0.0001);return (t.y1-t.y0)/t.d;",
+            "t.r1=v.emitter_random_1;t.r2=v.emitter_random_2;t.r3=v.emitter_random_3;t.r4=v.emitter_random_4; t.sgn=t.r2<0.5?-1:1; t.w=t.sgn*Math.max(v.turn*(1+(2*t.r3-1)*v.turn_var),0.01); t.wr=t.w*3.14159265/180; t.yaw=v.heading+(t.r1-0.5)*v.spread; t.hz=Math.cos(t.yaw);t.dz=Math.sin(t.yaw); t.pit=v.pitch+(2*t.r4-1)*v.pitch_var; t.spd=v.speed*(1+(2*Math.mod(t.r1*7919,1)-1)*v.speed_var); t.u0=t.spd*Math.cos(t.pit)-v.drive_h; t.w0=t.spd*Math.sin(t.pit)-v.rise_vel; t.k2=v.drag*v.drag+t.wr*t.wr; t.ox=(Math.mod(t.r2*6271,1)-0.5)*v.jitter; t.oy=(Math.mod(t.r3*4513,1)-0.5)*0.5*v.jitter; t.T=v.emitter_age; t.L=v.len*(0.52+0.48*t.T/v.life); t.j=Math.floor((v.emitter_age-v.particle_age)*v.rate+0.2); t.a=t.j/v.rate;t.b=(t.j+1)/v.rate; t.lo=Math.max(t.a,t.T-t.L); t.hi=Math.max(Math.min(t.b,t.T),t.lo); t.e=t.lo; t.jr=Math.exp(-v.drag*t.e);t.gz=Math.cos(t.w*t.e);t.pu=Math.sin(t.w*t.e); t.lx=t.ox+v.drive_h*(1-t.gz)/t.wr+t.u0*(t.wr*(1-t.jr*t.gz)-v.drag*t.jr*t.pu)/t.k2; t.lz=v.drive_h*t.pu/t.wr+t.u0*(v.drag*(1-t.jr*t.gz)+t.wr*t.jr*t.pu)/t.k2; t.x0=t.lx*t.hz-t.lz*t.dz; t.y0=t.oy+v.rise_vel*t.e+t.w0*(1-t.jr)/v.drag+0.5*v.rise_acc*t.e*t.e; t.z0=t.lx*t.dz+t.lz*t.hz; t.e=t.hi; t.jr=Math.exp(-v.drag*t.e);t.gz=Math.cos(t.w*t.e);t.pu=Math.sin(t.w*t.e); t.lx=t.ox+v.drive_h*(1-t.gz)/t.wr+t.u0*(t.wr*(1-t.jr*t.gz)-v.drag*t.jr*t.pu)/t.k2; t.lz=v.drive_h*t.pu/t.wr+t.u0*(v.drag*(1-t.jr*t.gz)+t.wr*t.jr*t.pu)/t.k2; t.x1=t.lx*t.hz-t.lz*t.dz; t.y1=t.oy+v.rise_vel*t.e+t.w0*(1-t.jr)/v.drag+0.5*v.rise_acc*t.e*t.e; t.z1=t.lx*t.dz+t.lz*t.hz; t.d=Math.max(Math.sqrt((t.x1-t.x0)*(t.x1-t.x0)+(t.y1-t.y0)*(t.y1-t.y0)+(t.z1-t.z0)*(t.z1-t.z0)),0.0001);return (t.z1-t.z0)/t.d;"
+          ]
+        },
+        "uv": {
+          "texture_width": 1,
+          "texture_height": 1,
+          "uv": [
+            0,
+            "t.T=v.emitter_age; t.L=v.len*(0.52+0.48*t.T/v.life); t.j=Math.floor((v.emitter_age-v.particle_age)*v.rate+0.2); t.a=t.j/v.rate;t.b=(t.j+1)/v.rate; t.lo=Math.max(t.a,t.T-t.L); t.hi=Math.max(Math.min(t.b,t.T),t.lo);return (t.T-t.hi)/t.L;"
+          ],
+          "uv_size": [
+            1,
+            "t.T=v.emitter_age; t.L=v.len*(0.52+0.48*t.T/v.life); t.j=Math.floor((v.emitter_age-v.particle_age)*v.rate+0.2); t.a=t.j/v.rate;t.b=(t.j+1)/v.rate; t.lo=Math.max(t.a,t.T-t.L); t.hi=Math.max(Math.min(t.b,t.T),t.lo);return (t.hi-t.lo)/t.L;"
+          ]
+        }
+      },
+      "minecraft:particle_appearance_tinting": {
+        "color": [
+          1,
+          1,
+          1,
+          "v.alpha*Math.hermite_blend(Math.clamp((1-v.emitter_age/v.life)/v.fade,0,1))"
+        ]
+      }
+    }
+  }
+}</script></div></div></div>
+<div class="tp" data-tab="par"><div class="panel"><h3><span data-l="id">Parameter</span><span data-l="en">Parameters</span></h3><p><span data-l="id">Semua di <code>emitter_initialization.creation_expression</code>.</span><span data-l="en">All in <code>emitter_initialization.creation_expression</code>.</span></p><div class="tw"><table><tr><th><span data-l="id">Variabel</span><span data-l="en">Variable</span></th><th><span data-l="id">Nilai</span><span data-l="en">Value</span></th><th><span data-l="id">Arti</span><span data-l="en">Meaning</span></th></tr><tr><td class="m">v.life</td><td class="m">2.5 - 4</td><td><span data-l="id">umur ribbon (detik), acak antara dua nilai ini; emitter dan semua partikelnya berakhir di sini</span><span data-l="en">ribbon lifetime (seconds), random between these two values; the emitter and all its particles end here</span></td></tr><tr><td class="m">v.rate</td><td class="m">8</td><td><span data-l="id">jumlah partikel (ubin) per detik; turunkan ke 6 untuk HP lambat</span><span data-l="en">particles (tiles) per second; lower to 6 for slow phones</span></td></tr><tr><td class="m">v.heading</td><td class="m">0</td><td><span data-l="id">arah dasar dalam derajat (opsional); bisa dikirim dari luar</span><span data-l="en">base direction in degrees (optional); can be passed from outside</span></td></tr><tr><td class="m">v.spread</td><td class="m">50</td><td><span data-l="id">sebaran arah di sekitar heading</span><span data-l="en">direction spread around heading</span></td></tr><tr><td class="m">v.pitch / pitch_var</td><td class="m">25 / 12</td><td><span data-l="id">sudut naik dan variasinya</span><span data-l="en">pitch angle and its variation</span></td></tr><tr><td class="m">v.speed / speed_var</td><td class="m">10 / 0.15</td><td><span data-l="id">kecepatan awal dan variasinya</span><span data-l="en">initial speed and its variation</span></td></tr><tr><td class="m">v.drag</td><td class="m">3</td><td><span data-l="id">peredam gerak</span><span data-l="en">drag</span></td></tr><tr><td class="m">v.drive_h</td><td class="m">3</td><td><span data-l="id">dorongan horizontal yang ikut berputar</span><span data-l="en">horizontal drive that rotates with the path</span></td></tr><tr><td class="m">v.rise_vel / rise_acc</td><td class="m">1 / 1.5</td><td><span data-l="id">kecepatan dan percepatan vertikal</span><span data-l="en">vertical velocity and acceleration</span></td></tr><tr><td class="m">v.turn / turn_var</td><td class="m">35 / 0.4</td><td><span data-l="id">laju putar (derajat per detik): penentu kelengkungan</span><span data-l="en">turn rate (degrees per second): controls curvature</span></td></tr><tr><td class="m">v.jitter</td><td class="m">0.3</td><td><span data-l="id">geser posisi awal acak</span><span data-l="en">random start offset</span></td></tr><tr><td class="m">v.len</td><td class="m">1.04</td><td><span data-l="id">panjang ekor dalam detik waktu kurva (tumbuh 0.52 sampai 1 kali)</span><span data-l="en">tail length in curve seconds (grows 0.52 to 1 times)</span></td></tr><tr><td class="m">v.width</td><td class="m">0.26</td><td><span data-l="id">lebar ribbon (size[0])</span><span data-l="en">ribbon width (size[0])</span></td></tr><tr><td class="m">v.alpha / fade</td><td class="m">0.7 / 0.3</td><td><span data-l="id">alpha maksimum dan porsi umur untuk memudar</span><span data-l="en">maximum alpha and the fraction of lifetime used to fade</span></td></tr></table></div>
+<h3><span data-l="id">Hasil tes (simulasi)</span><span data-l="en">Test results (simulation)</span></h3><ul><li><span data-l="id">Rumus kurva cocok dengan wrbaad, selisih maksimum sekitar 1e-8.</span><span data-l="en">The curve formula matches wrbaad, with a maximum difference of about 1e-8.</span></li><li><span data-l="id">Sambungan antar potongan rapat (selisih sekitar 1e-15) dan UV menyambung.</span><span data-l="en">Joints between pieces are tight (difference around 1e-15) and the UV is continuous.</span></li><li><span data-l="id">Tanpa potongan ganda atau hilang sampai sekitar 12 fps pada rate 8; rate 6 aman sampai sekitar 8 fps.</span><span data-l="en">No duplicated or missing pieces down to about 12 fps at rate 8; rate 6 is safe down to about 8 fps.</span></li></ul>
+<div class="warn"><span data-l="id"><b>Belum dites di Minecraft.</b> Asumsi yang perlu dicek: <code>spawn_rate</code> dan <code>max_lifetime</code> sebagai ekspresi Molang, dan <code>v.emitter_age</code> terbaca dari ekspresi partikel (endckw juga memakainya).</span><span data-l="en"><b>Not tested in Minecraft yet.</b> Assumptions to check: <code>spawn_rate</code> and <code>max_lifetime</code> as Molang expressions, and <code>v.emitter_age</code> being readable from particle expressions (endckw uses it too).</span></div>
+<h3><span data-l="id">Cara pakai</span><span data-l="en">How to use</span></h3><ol><li><span data-l="id">Simpan sebagai <code>particles/soul_ribbon.json</code>; tekstur <code>textures/ribbon/warden_soul.png</code>.</span><span data-l="en">Save it as <code>particles/soul_ribbon.json</code>; texture <code>textures/ribbon/warden_soul.png</code>.</span></li><li><span data-l="id">Tes:</span><span data-l="en">Test:</span> <code>/particle ribbon:soul_ribbon ~ ~1 ~</code></li></ol></div></div>
+<div class="nav2"><button class="obtn" data-go="actions"><b><span data-l="id">Lihat: Action &amp; Stuff Warden Soul Ribbon Particle</span><span data-l="en">See: Action &amp; Stuff Warden Soul Ribbon Particle</span></b></button></div></section>
+<div id="wipe"></div></div><script src="assets/js/script.js"></script></body></html>
