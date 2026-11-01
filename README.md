@@ -160,9 +160,4 @@ Original assets and implementations remain the property of their respective owne
 
 ---
 
-\<p align="center">
-&#x20; \*\*Reverse Engineer. Understand. Recreate.\*\*
-
-Made by **CBrusMC**
-
-\</p>
+\<p align="center">&#x20; \*\*Reverse Engineer. Understand. Recreate.\*\*Made by **CBrusMC**\</p>
