@@ -159,3 +159,5 @@ This is an independent technical research and educational documentation project.
 Original assets and implementations remain the property of their respective owners.
 
 ---
+
+By CBrusMC
